@@ -77,23 +77,29 @@ DeepAgents 中常见的子智能体配置方式有两种。
 
 字典方式更像“直接声明一个助手”：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 weather_agent = {
     "name": "weather_helper",
     "description": "用于查询天气信息。",
     "system_prompt": "你是一个天气助手。",
     "tools": [],
 }
+
+
 ```
 
 `CompiledSubAgent` 更像“把已经写好的能力包一层，交给 DeepAgents 调度”：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 sub_agent = CompiledSubAgent(
     name="research_planner_graph",
     description="用于把开放研究问题拆解成可执行的研究计划。",
     runnable=compiled_graph,
 )
+
+
 ```
 
 ### 2.2 三个核心参数
@@ -142,12 +148,15 @@ sub_agent = CompiledSubAgent(
 
 LangGraph 子图要接入 DeepAgents，最关键的要求是：**State 里必须包含 `messages` 字段。**
 
-```python
-class ResearchPlanState(TypedDict):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+type ResearchPlanState = {
     messages: Annotated[list, add_messages]
-    topic: str
+    topic: string
     depth: Literal["quick", "deep"]
-    plan: list[str]
+    plan: any[][str]
+}
+
 ```
 
 这里有两个重点。
@@ -158,25 +167,32 @@ class ResearchPlanState(TypedDict):
 
 如果写成普通的：
 
-```python
-messages: list
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+messages: any[]
+
+
 ```
 
 后面的节点很容易只看到最后一次状态，前面的用户问题、模型调度和子图中间结果都会丢失。
 
 所以接入 DeepAgents 的 LangGraph 子图，一般要保留这种写法：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 messages: Annotated[list, add_messages]
+
+
 ```
 
 ### 3.3 定义研究规划节点
 
 第一个节点负责从任务中提取研究主题，并判断研究深度。
 
-```python
-def extract_topic(state: ResearchPlanState):
-    """从用户任务中提取研究主题，并判断是否需要深度研究。"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function extract_topic(state: ResearchPlanState) {
+    /* 从用户任务中提取研究主题，并判断是否需要深度研究。 */
     task = state["messages"][-1].content
     depth = "deep" if any(word in task for word in ["深度", "报告", "系统", "趋势"]) else "quick"
     topic = (
@@ -186,13 +202,15 @@ def extract_topic(state: ResearchPlanState):
         .replace("一份", "")
         .strip("。 ")
     )
-    print(f"【LangGraph】提取研究主题：{topic}")
-    print(f"【LangGraph】判断研究深度：{depth}")
+    console.log(`【LangGraph】提取研究主题：${topic}`)
+    console.log(`【LangGraph】判断研究深度：${depth}`)
     return {
         "topic": topic,
         "depth": depth,
-        "messages": [AIMessage(content=f"已识别研究主题：{topic}；研究深度：{depth}")],
+        "messages": [AIMessage(content=`已识别研究主题：${topic}；研究深度：${depth}`)],
     }
+
+
 ```
 
 这里故意没有调用大模型，而是用简单规则模拟主题提取和深度判断。这样你可以先看清楚 LangGraph 的状态流转，不会被模型输出的不确定性带偏。
@@ -201,9 +219,10 @@ def extract_topic(state: ResearchPlanState):
 
 如果任务是普通查询，就走 `quick_plan`；如果任务是深度研究，就走 `deep_plan`。
 
-```python
-def route_by_depth(state: ResearchPlanState):
-    """条件边：根据研究深度选择普通规划或深度规划。"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function route_by_depth(state: ResearchPlanState) {
+    /* 条件边：根据研究深度选择普通规划或深度规划。 */
     return state["depth"]
 
 
@@ -215,6 +234,8 @@ workflow.add_conditional_edges(
         "deep": "deep_plan",
     },
 )
+
+
 ```
 
 这部分对应前面 LangGraph 教程中的条件边：节点执行完成后，由路由函数读取当前 `state`，再决定下一步走向。
@@ -230,22 +251,25 @@ workflow.add_conditional_edges(
 
 深度研究计划节点会生成更完整的执行步骤：
 
-```python
-def build_deep_plan(state: ResearchPlanState):
-    """深度研究规划：适合报告、趋势分析、行业调研等长链路任务。"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function build_deep_plan(state: ResearchPlanState) {
+    /* 深度研究规划：适合报告、趋势分析、行业调研等长链路任务。 */
     topic = state["topic"]
     plan = [
-        f"明确「{topic}」的研究范围、时间窗口和核心问题",
+        `明确「${topic}」的研究范围、时间窗口和核心问题`,
         "搜索公开资料，优先收集权威媒体、机构报告和官方信息",
         "拆分技术、产业、公司案例、风险四个方向分别整理证据",
         "对不同来源的信息做交叉验证，记录冲突和缺口",
         "输出结构化研究报告：背景、现状、趋势、案例、风险、结论",
     ]
-    print("【LangGraph】进入 deep_plan 节点")
+    console.log("【LangGraph】进入 deep_plan 节点")
     return {
         "plan": plan,
         "messages": [AIMessage(content="已生成深度研究计划。")],
     }
+
+
 ```
 
 最后由 `finalize_plan()` 把状态里的 `topic`、`depth`、`plan` 汇总成一条 `AIMessage`，返回给 DeepAgents 主智能体。
@@ -254,7 +278,8 @@ def build_deep_plan(state: ResearchPlanState):
 
 LangGraph 图编译完成后，就可以作为 `runnable` 传给 `CompiledSubAgent`。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 compiled_graph = workflow.compile()
 
 research_planner_graph = CompiledSubAgent(
@@ -262,21 +287,26 @@ research_planner_graph = CompiledSubAgent(
     description="用于把开放研究问题拆解成可执行的研究计划，适合行业趋势、技术调研、报告规划等任务。",
     runnable=compiled_graph,
 )
+
+
 ```
 
 最后注册到 DeepAgents 主智能体：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 main_agent = create_deep_agent(
     model=llm,
     tools=[],
     subagents=[research_planner_graph],
-    system_prompt="""
+    system_prompt=/* 
     你是深度研搜系统的主智能体。
     当用户需要研究规划、报告大纲、趋势调研步骤时，必须调用 research_planner_graph。
     你不自己编造研究计划，而是根据子智能体返回的计划整理最终回复。
-    """,
+     */,
 )
+
+
 ```
 
 ### 3.7 执行输出
@@ -354,16 +384,17 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 | ---------------- | -------------------------------------------------------------------- |
 | `@tool` 工具封装 | `cases-langchain/08-tools/QueryWeatherTool.ts`            |
 | `create_agent()` | `cases-langchain/12-agent/AgentSmartSelectV1.0.ts`        |
-| 结构化结果意识   | `cases-langchain/05_parser/StructuredOutput_TypedDict.ts` |
+| 结构化结果意识   | `cases-langchain/05_parser/StructuredOutput_TypeScript type / interface.ts` |
 
 ### 4.2 定义资料检索工具
 
 示例里没有直接调用真实搜索引擎或企业知识库，而是先用两个模拟工具表达真实项目中的两类资料来源。
 
-```python
-@tool
-def search_public_web(query: str) -> str:
-    """
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// tool(...)
+function search_public_web(query: string): str {
+    /* 
     检索公开网络资料。
 
     参数:
@@ -371,27 +402,32 @@ def search_public_web(query: str) -> str:
 
     返回:
         模拟的公开资料摘要。真实项目中可以替换为 Tavily、搜索引擎 API 或爬虫服务。
-    """
-    print(f"【LangChain Tool】检索公开资料：{query}")
+     */
+    console.log(`【LangChain Tool】检索公开资料：${query}`)
     return (
         "公开资料检索结果：\n"
         "1. 多家机构认为具身智能正在推动机器人从单点自动化走向通用任务执行。\n"
         "2. 机器人产业热点集中在大模型控制、灵巧手、低成本传感器和仿真训练。"
     )
+
+
 ```
 
 另一个工具模拟企业内部知识库：
 
-```python
-@tool
-def search_internal_knowledge_base(query: str) -> str:
-    """检索企业内部知识库。"""
-    print(f"【LangChain Tool】检索内部知识库：{query}")
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// tool(...)
+function search_internal_knowledge_base(query: string): str {
+    /* 检索企业内部知识库。 */
+    console.log(`【LangChain Tool】检索内部知识库：${query}`)
     return (
         "内部知识库检索结果：\n"
         "1. 历史项目复盘显示，客户最关注机器人方案的稳定性、部署周期和维护成本。\n"
         "2. 销售材料中高频卖点包括：多模态感知、自动任务分解、远程运维和持续学习。"
     )
+
+
 ```
 
 这里的关键不是模拟数据本身，而是工具边界：
@@ -404,45 +440,54 @@ def search_internal_knowledge_base(query: str) -> str:
 
 接下来用 `create_agent()` 创建一个普通 LangChain Agent。
 
-```python
-research_retriever_agent = create_agent(
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+research_retriever_agent = createReactAgent(
     model=llm,
     tools=[search_public_web, search_internal_knowledge_base],
-    system_prompt="""
+    system_prompt=/* 
     你是资料检索助手，负责为深度研究任务收集资料。
     当用户需要行业公开信息时，调用 search_public_web。
     当用户需要企业内部经验、项目复盘或知识库内容时，调用 search_internal_knowledge_base。
     如果问题同时涉及公开趋势和内部经验，可以两个工具都调用。
     最后请用中文输出：资料来源、关键发现、后续建议。
-    """,
+     */,
 )
+
+
 ```
 
 这个 Agent 本身已经能根据用户问题调用工具。DeepAgents 需要做的，不是重写它，而是把它包成子智能体。
 
 ### 4.4 封装成 DeepAgents 子智能体
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 research_retriever_subagent = CompiledSubAgent(
     name="research_retriever_agent",
     description="用于检索公开资料和企业内部知识库，适合为深度研究报告收集证据和背景信息。",
     runnable=research_retriever_agent,
 )
+
+
 ```
 
 然后注册到 DeepAgents 主智能体：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 deep_agent = create_deep_agent(
     model=llm,
     tools=[],
-    system_prompt="""
+    system_prompt=/* 
     你是深度研搜系统的主智能体。
     当用户需要查找资料、收集证据、检索公开信息或内部知识库时，必须调用 research_retriever_agent。
     你不直接检索资料，只负责分派任务并整理子智能体返回的结果。
-    """,
+     */,
     subagents=[research_retriever_subagent],
 )
+
+
 ```
 
 注意这里主智能体的 `tools=[]`。也就是说，公开搜索工具和内部知识库工具没有直接挂在 DeepAgents 主智能体上，而是挂在 LangChain 子 Agent 上。

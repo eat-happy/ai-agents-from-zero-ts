@@ -163,43 +163,37 @@ Tavily 是面向大模型使用的搜索 API，它返回的结果通常已经整
 
 核心代码如下：
 
-```python
-import os
-from typing import Literal
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 
-from dotenv import load_dotenv
-from langchain_core.tools import tool
+
+
+import "dotenv/config";
+import { tool } from "@langchain/core/tools";
 from tavily import TavilyClient
 
 from app.api.monitor import monitor
 
-load_dotenv()
+// env loaded via dotenv/config
+// TavilyClient 是实际访问搜索服务的客户端；模块级复用可避免每次工具调用重复初始化
+tavily_client = TavilyClient(apiKey:process.env.TAVILY_API_KEY)
 
 
-# TavilyClient 是实际访问搜索服务的客户端；模块级复用可避免每次工具调用重复初始化
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-
-
-# @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
-@tool
-def internet_search(
-    query: str,
-    topic: Literal["news", "finance", "general"] = "general",
-    max_results: int = 5,
-    include_raw_content: bool = False,
-):
-    """
+// @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
+// tool(...)
+function internet_search(query: string, topic: Literal["news", "finance", "general"] = "general", max_results: number = 5, include_raw_content: boolean = false,) {
+    /* 
     根据用户问题检索互联网公开信息
 
     注意：本工具只用于外部公开网页、新闻、政策等信息，不用于查询业务数据库或 RAGFlow 私有知识库
     :param query: 搜索关键词或自然语言问题
     :param topic: 搜索主题，可选 news、finance、general
     :param max_results: 返回的最大结果数
-    :param include_raw_content: 是否返回网页原文内容；False 返回摘要，True 尝试返回更完整正文
+    :param include_raw_content: 是否返回网页原文内容；false 返回摘要，true 尝试返回更完整正文
     :return: Tavily 返回的结构化搜索结果
-    """
-    # 工具内部埋点比外层 stream 解析更直接：只要工具被调用，前端就能看到本次搜索参数
-    # 这里只上报查询参数，不上报搜索结果正文，避免监控事件体过大
+     */
+    // 工具内部埋点比外层 stream 解析更直接：只要工具被调用，前端就能看到本次搜索参数
+    // 这里只上报查询参数，不上报搜索结果正文，避免监控事件体过大
     monitor.report_tool(
         tool_name="网络搜索工具",
         args={
@@ -210,7 +204,7 @@ def internet_search(
         },
     )
 
-    # Tavily 返回 query、results、title、url、content 等结构化字段，后续由子智能体阅读并汇总
+    // Tavily 返回 query、results、title、url、content 等结构化字段，后续由子智能体阅读并汇总
     return tavily_client.search(
         query=query,
         topic=topic,
@@ -219,15 +213,17 @@ def internet_search(
     )
 
 
-if __name__ == "__main__":
+if (__name__ == "__main__") {
     from pprint import pprint
 
-    # 本地调试入口：直接运行本文件可验证 TAVILY_API_KEY 和 Tavily API 是否可用
+    // 本地调试入口：直接运行本文件可验证 TAVILY_API_KEY 和 Tavily API 是否可用
     pprint(
         internet_search.invoke(
             {"query": "2026中国法定节假日放假安排表，我天天都想要放假"}
         )
     )
+
+
 ```
 
 ### 4.1 参数说明
@@ -292,10 +288,11 @@ if __name__ == "__main__":
 
 下面是把实际输出压缩后的结构，重点看字段，不需要把很长的网页正文都放进教程或报告里：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
-    "answer": None,
-    "follow_up_questions": None,
+    "answer": null,
+    "follow_up_questions": null,
     "images": [],
     "query": "2026中国法定节假日放假安排表，我天天都想要放假",
     "request_id": "6005dc62-...",
@@ -306,18 +303,20 @@ if __name__ == "__main__":
             "url": "http://www.scio.gov.cn/zdgz/jj/202511/t20251110_938367.html",
             "content": "经国务院批准，现将2026年元旦、春节、清明节、劳动节、端午节、中秋节和国庆节放假调休日期的具体安排通知如下...",
             "score": 0.86981434,
-            "raw_content": None,
+            "raw_content": null,
         },
         {
             "title": "國務院辦公廳關於2026年部分節假日安排的通知 - 中國政府網",
             "url": "http://big5.www.gov.cn/gate/big5/www.gov.cn/gongbao/2025/issue_12406/202511/content_7048922.html",
             "content": "經國務院批准，現將2026年元旦、春節、清明節、勞動節、端午節、中秋節和國慶節放假調休日期的具體安排通知如下...",
             "score": 0.8215175,
-            "raw_content": None,
+            "raw_content": null,
         },
         "... 其余结果省略 ..."
     ],
 }
+
+
 ```
 
 这段输出里有几个很值得注意的点：
@@ -344,7 +343,8 @@ if __name__ == "__main__":
 
 这里把埋点写在工具内部：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 monitor.report_tool(
     tool_name="网络搜索工具",
     args={
@@ -354,6 +354,8 @@ monitor.report_tool(
         "include_raw_content": include_raw_content,
     },
 )
+
+
 ```
 
 只要 Agent 调用了 `internet_search`，前端就能看到“正在调用网络搜索工具”，并且能看到这次搜索的参数。
@@ -393,7 +395,7 @@ DeepAgents 底层是图执行逻辑，所以主智能体可以用 `stream` / `as
 
 ```text
 主智能体开始执行
-  -> stream 产出 chunk
+ : stringeam 产出 chunk
   -> 后端判断这个 chunk 代表什么事件
   -> 如果是调用工具，就推送 tool 事件
   -> 如果是调用子智能体，就推送 assistant 事件
@@ -402,32 +404,38 @@ DeepAgents 底层是图执行逻辑，所以主智能体可以用 `stream` / `as
 
 可以先看一个简化版伪代码。这里的 `is_tool_call_chunk`、`is_sub_agent_chunk` 只是为了说明判断思路，不是本章要直接复制的真实函数：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 async for chunk in main_agent.astream(
     {"messages": [{"role": "user", "content": task_query}]},
     config=config,
-    subgraphs=True,
+    subgraphs=true,
 ):
-    # 统一处理主智能体和子智能体执行过程中吐出来的片段
-    if is_tool_call_chunk(chunk):
+    // 统一处理主智能体和子智能体执行过程中吐出来的片段
+    if (is_tool_call_chunk(chunk)) {
         monitor.report_tool(
             tool_name=get_tool_name(chunk),
             args=get_tool_args(chunk),
         )
 
-    elif is_sub_agent_chunk(chunk):
+    } else if (is_sub_agent_chunk(chunk)) {
         monitor.report_assistant(
             assistant_name=get_assistant_name(chunk),
             args=get_assistant_args(chunk),
         )
+
+
 ```
 
 这种做法的好处是：**所有进度都在主执行循环里统一处理**。后续如果前端要做更完整的执行时间线，比如“主智能体 -> 子智能体 -> 工具 -> 返回结果”，流式解析会更集中。但它有一个容易踩坑的地方：如果只对主智能体做普通流式输出，默认更容易看到主智能体这一层的事件；子智能体内部又调用了哪些工具，不一定都会出现在主智能体的流式结果里。
 
 所以如果希望把子智能体内部执行过程也拿出来，就要注意开启子图流式输出：
 
-```python
-subgraphs=True
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+subgraphs=true
+
+
 ```
 
 可以把它理解成一句话：**子智能体也是一张子图，只有把子图也纳入流式输出，后端才更容易从 chunk 里观察到子智能体内部的工具调用过程。**
@@ -440,7 +448,7 @@ subgraphs=True
 
 ```text
 Agent 调用 internet_search
-  -> internet_search 内部先调用 monitor.report_tool
+ : numberernet_search 内部先调用 monitor.report_tool
   -> monitor 根据当前 thread_id 找到对应前端连接
   -> WebSocket 把“正在执行网络搜索工具”推给前端
   -> 工具继续调用 Tavily，返回搜索结果
@@ -469,30 +477,33 @@ Agent 调用 internet_search
 
 这个文件只做一件事：把 YAML 里的网络助手配置和 `internet_search` 工具组装成 DeepAgents 认识的字典。
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 网络搜索子智能体配置模块
 
 将 app/prompt/prompts.yml 中的 tavily 配置与 internet_search 工具组装成
 DeepAgents 可识别的字典式子智能体。主智能体后续会根据 description
 决定是否把公开网络信息查询任务分派给它。
-"""
+ */
 
 from app.agent.prompts import sub_agents_content
 from app.tools.tavily_tool import internet_search
 
 
-# 字典式子智能体的核心字段来自 YAML，便于后续只改配置就能调整路由描述和行为约束
-# tools 列表声明该子智能体可以调用的真实外部能力
+// 字典式子智能体的核心字段来自 YAML，便于后续只改配置就能调整路由描述和行为约束
+// tools 列表声明该子智能体可以调用的真实外部能力
 network_search_agent = {
     "name": sub_agents_content["tavily"]["name"],
     "description": sub_agents_content["tavily"]["description"],
     "system_prompt": sub_agents_content["tavily"]["system_prompt"],
     "tools": [internet_search],
 }
+
+
 ```
 
-这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.ts` 并没有把提示词硬编码在 Python 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.ts` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 Python 代码。
+这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.ts` 并没有把提示词硬编码在 TypeScript 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.ts` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 TypeScript 代码。
 
 | 字段            | 来源                       | 作用                         |
 | --------------- | -------------------------- | ---------------------------- |

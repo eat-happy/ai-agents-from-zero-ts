@@ -19,7 +19,7 @@
 **对应代码分支：** `06-deepagents-backends-memory`
 
 **参考资料：**
-DeepAgents 后端存储：https://docs.langchain.com/oss/python/deepagents/backends
+DeepAgents 后端存储：https://docs.langchain.com/oss/javascript/deepagents/backends
 
 ---
 
@@ -169,29 +169,35 @@ Backend 关注的是 Agent 的文件读写结果。
 
 示例中用 `Path` 创建一个工作目录：
 
-```python
-from pathlib import Path
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 
-# 准备本地工作目录
-# Agent 写入的文件最终会落到这个目录中，便于本地调试和查看结果
+
+// 准备本地工作目录
+// Agent 写入的文件最终会落到这个目录中，便于本地调试和查看结果
 workspace_dir = Path("./agent_workspace").resolve()
-workspace_dir.mkdir(parents=True, exist_ok=True)
+workspace_dir.mkdir(parents=true, exist_ok=true)
+
+
 ```
 
 这个目录就是 Agent 文件系统映射到宿主机后的实际位置。
 
 ### 3.3 创建 FilesystemBackend
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from deepagents.backends import FilesystemBackend
 
-# FilesystemBackend 把 DeepAgents 的文件系统操作映射到本地磁盘
-# root_dir 是真实存储目录
-# virtual_mode=True 表示开启虚拟沙箱，限制 Agent 只能在 root_dir 范围内读写
+// FilesystemBackend 把 DeepAgents 的文件系统操作映射到本地磁盘
+// root_dir 是真实存储目录
+// virtual_mode=true 表示开启虚拟沙箱，限制 Agent 只能在 root_dir 范围内读写
 file_backend = FilesystemBackend(
     root_dir=workspace_dir,
-    virtual_mode=True,
+    virtual_mode=true,
 )
+
+
 ```
 
 这里有两个关键参数：
@@ -207,27 +213,31 @@ file_backend = FilesystemBackend(
 
 创建 Agent 时，把 Backend 传进去。
 
-```python
-# 这里把 backend 指定为 file_backend
-# Agent 内置文件工具产生的文件读写，会交给 FilesystemBackend 处理
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 这里把 backend 指定为 file_backend
+// Agent 内置文件工具产生的文件读写，会交给 FilesystemBackend 处理
 main_agent = create_deep_agent(
     model=llm,
     tools=[],
     backend=file_backend,
-    system_prompt="""
+    system_prompt=/* 
     你是一个智能助手，可以使用文件工具进行文件读写
     只有在用户明确要求创建或写入文件时，才可以创建文件
-    """,
+     */,
 )
+
+
 ```
 
 这样，当用户明确要求创建文件时，Agent 内置的文件系统工具会把内容写到 `agent_workspace` 目录。
 
 示例里还专门做了两次调用，用来观察提示词约束是否生效：
 
-```python
-# 第一次请求只是查询介绍，没有明确要求写文件
-# 用来观察 Agent 是否会遵守提示词，不主动创建文件
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 第一次请求只是查询介绍，没有明确要求写文件
+// 用来观察 Agent 是否会遵守提示词，不主动创建文件
 result_1 = main_agent.invoke(
     {
         "messages": [
@@ -239,8 +249,8 @@ result_1 = main_agent.invoke(
     }
 )
 
-# 第二次请求明确要求把内容写入 java.txt
-# 此时 Agent 可以调用文件工具，FilesystemBackend 会把文件保存到 agent_workspace
+// 第二次请求明确要求把内容写入 java.txt
+// 此时 Agent 可以调用文件工具，FilesystemBackend 会把文件保存到 agent_workspace
 result_2 = main_agent.invoke(
     {
         "messages": [
@@ -251,6 +261,8 @@ result_2 = main_agent.invoke(
         ]
     }
 )
+
+
 ```
 
 ### 3.5 运行 FilesystemBackend 示例
@@ -342,34 +354,40 @@ value = {'content': 'Name: 乌萨奇\nAge: 16', 'encoding': 'utf-8', ...}
 
 本案例中使用的是 LangGraph 的内存 Store。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from langgraph.store.memory import InMemoryStore
 
-# InMemoryStore 是教学用内存 Store，进程重启后数据会丢失
-# 生产环境可以替换成 RedisStore、数据库 Store 或其他持久化 Store
+// InMemoryStore 是教学用内存 Store，进程重启后数据会丢失
+// 生产环境可以替换成 RedisStore、数据库 Store 或其他持久化 Store
 store = InMemoryStore()
+
+
 ```
 
 教学中用 `InMemoryStore` 比较方便，但它重启后会丢失。生产环境可以替换成 Redis、Postgres 等外部存储。
 
 ### 4.3 创建 Agent 时使用 StoreBackend
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from deepagents.backends import StoreBackend
 
-# StoreBackend 会把文件路径映射成 Store 中的 key，把文件内容映射成 value
-# 这里要求 Agent 把用户重要信息写入 user_profile.txt
-# 底层实际不会写本地文件，而是写入上面的 store
+// StoreBackend 会把文件路径映射成 Store 中的 key，把文件内容映射成 value
+// 这里要求 Agent 把用户重要信息写入 user_profile.txt
+// 底层实际不会写本地文件，而是写入上面的 store
 main_agent = create_deep_agent(
     model=llm,
     backend=StoreBackend,
     store=store,
-    system_prompt="""
+    system_prompt=/* 
     你是一个智能助手
     当用户提供重要个人信息时，请保存到 user_profile.txt
     当用户询问个人信息时，请从 user_profile.txt 中读取
-    """,
+     */,
 )
+
+
 ```
 
 这里的 `backend=StoreBackend` 表示文件系统操作走 Store。
@@ -395,16 +413,20 @@ main_agent = create_deep_agent(
 
 示例里使用两个不同的 `thread_id`，模拟两次不同线程或不同会话：
 
-```python
-# 使用两个不同 thread_id 模拟跨线程或跨会话
-# Backend 保存的是长期文件数据，不依赖同一个 thread_id 才能读取
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 使用两个不同 thread_id 模拟跨线程或跨会话
+// Backend 保存的是长期文件数据，不依赖同一个 thread_id 才能读取
 config_a = {"configurable": {"thread_id": "thread-a"}}
 config_b = {"configurable": {"thread_id": "thread-b"}}
+
+
 ```
 
 第一次执行时，线程 A 写入用户信息：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 result_a = main_agent.invoke(
     {
         "messages": [
@@ -416,24 +438,30 @@ result_a = main_agent.invoke(
     },
     config=config_a,
 )
+
+
 ```
 
 写入后，可以直接读取底层 Store，观察 `StoreBackend` 到底保存了什么：
 
-```python
-# 直接读取 Store，观察 StoreBackend 写入的底层数据
-# DeepAgents 文件系统默认使用 filesystem 命名空间保存文件式内容
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 直接读取 Store，观察 StoreBackend 写入的底层数据
+// DeepAgents 文件系统默认使用 filesystem 命名空间保存文件式内容
 items = store.search(("filesystem",))
-for item in items:
-    print(f"key = {item.key}")
-    print(f"value = {item.value}")
+for (const item of items) {
+    console.log(`key = ${item.key}`)
+    console.log(`value = ${item.value}`)
+
+
 ```
 
 第二次执行时，线程 B 读取同一份用户信息：
 
-```python
-# 第二次执行：线程 B 读取同一份用户信息
-# 这说明 Backend 存储和 checkpointer 的线程状态不是一回事
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 第二次执行：线程 B 读取同一份用户信息
+// 这说明 Backend 存储和 checkpointer 的线程状态不是一回事
 result_b = main_agent.invoke(
     {
         "messages": [
@@ -445,6 +473,8 @@ result_b = main_agent.invoke(
     },
     config=config_b,
 )
+
+
 ```
 
 这个例子最重要的现象是：`thread-a` 写入的信息，`thread-b` 也能读到。说明 Backend 保存的是长期文件数据，不是上一章 `checkpointer` 保存的单线程暂停状态。
@@ -513,46 +543,49 @@ user_profile.txt
 
 本案例中定义了一个工厂函数：
 
-```python
-from pathlib import Path
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+
 
 from deepagents.backends import CompositeBackend, FilesystemBackend, StoreBackend
 from langgraph.store.memory import InMemoryStore
 
 
-# Store 用来保存 /store/ 路径下的重要记忆
-# 这里使用 InMemoryStore 便于教学观察，生产环境可以替换成持久化 Store
+// Store 用来保存 /store/ 路径下的重要记忆
+// 这里使用 InMemoryStore 便于教学观察，生产环境可以替换成持久化 Store
 store = InMemoryStore()
 
 
-def create_composite_backend(runtime):
-    """
+function create_composite_backend(runtime) {
+    /* 
     创建混合 Backend
 
     create_deep_agent 会把 runtime 传入这个工厂函数
     StoreBackend 需要 runtime 才能连接到 Agent 配置中的 store
-    """
+     */
     workspace_dir = Path("./agent_workspace").resolve()
-    workspace_dir.mkdir(parents=True, exist_ok=True)
+    workspace_dir.mkdir(parents=true, exist_ok=true)
 
-    # 默认后端：普通文件写入本地工作目录
+    // 默认后端：普通文件写入本地工作目录
     fs_backend = FilesystemBackend(
         root_dir=workspace_dir,
-        virtual_mode=True,
+        virtual_mode=true,
     )
 
-    # Store 后端：重要记忆写入 Key-Value Store
+    // Store 后端：重要记忆写入 Key-Value Store
     store_backend = StoreBackend(runtime)
 
-    # 路由规则：
-    # 普通路径，例如 local.txt，走 default 的 FilesystemBackend
-    # /store/ 开头的路径，例如 /store/memory.txt，走 StoreBackend
+    // 路由规则：
+    // 普通路径，例如 local.txt，走 default 的 FilesystemBackend
+    // /store/ 开头的路径，例如 /store/memory.txt，走 StoreBackend
     return CompositeBackend(
         default=fs_backend,
         routes={
             "/store/": store_backend,
         },
     )
+
+
 ```
 
 这里有两个路由规则：
@@ -573,18 +606,21 @@ local.txt              -> 写到本地文件系统
 
 创建 Agent 时，把工厂函数传给 `backend`。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 agent = create_deep_agent(
     model=llm,
     store=store,
     backend=create_composite_backend,
     tools=[],
-    system_prompt="""
+    system_prompt=/* 
     你是一个智能助手
     普通文件请直接写入文件名，例如 local.txt
     重要记忆请写入 /store/ 目录，例如 /store/memory.txt
-    """,
+     */,
 )
+
+
 ```
 
 注意，这里传的是函数 `create_composite_backend`，不是已经创建好的 Backend 对象。这是当前项目示例使用的写法，便于和前面的 `StoreBackend(runtime)` 路由代码对应起来。
@@ -623,12 +659,15 @@ flowchart LR
 
 示例最后通过 `store.search(("filesystem",))` 打印 Store 内容，确认 `/store/` 路径下的重要记忆确实进入了 Store：
 
-```python
-# CompositeBackend 命中 /store/ 路由后，会把内容交给 StoreBackend
-# 进入 Store 时，路由前缀可能会被剥离，因此可以直接打印 item 观察实际 key 和 value
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// CompositeBackend 命中 /store/ 路由后，会把内容交给 StoreBackend
+// 进入 Store 时，路由前缀可能会被剥离，因此可以直接打印 item 观察实际 key 和 value
 items = store.search(("filesystem",))
-for item in items:
-    print(item)
+for (const item of items) {
+    console.log(item)
+
+
 ```
 
 ### 5.5 运行 CompositeBackend 示例

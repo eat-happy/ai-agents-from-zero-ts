@@ -52,11 +52,11 @@
 
 ### 1.1 安装依赖
 
-在运行代码之前，先准备 Python 环境和依赖。当前教学代码仓库 `deepsearch-agents`，已经使用 `uv` 管理 Python 环境和依赖。
+在运行代码之前，先准备 Node.js 环境和依赖。当前教学代码仓库 `deepsearch-agents`，已经使用 `uv` 管理 Node.js 环境和依赖。
 
 如果你还不了解 `uv`，可以先参考「[3 - 电商问数：开发环境与基础服务准备](../projects/shop-query/3-开发环境与基础服务准备.md)」中关于 `uv` 的入门说明。本章不再展开讲 `uv` 的基础概念，只需要知道：在这个项目里，依赖已经写在 `pyproject.toml` 中，第一次运行时直接同步即可。
 
-当前 `deepsearch-agents/pyproject.toml` 中指定的 Python 版本是：
+当前 `deepsearch-agents/pyproject.toml` 中指定的 TypeScript 版本是：
 
 ```toml
 requires-python = ">=3.12,<3.13"
@@ -92,7 +92,7 @@ uv sync
 1. 安装本章依赖。
 2. 配置 `.env`。
 3. 创建 Tavily 搜索客户端。
-4. 使用 `@tool` 把普通 Python 函数封装成 Agent 可调用工具。
+4. 使用 `@tool` 把普通 TypeScript 函数封装成 Agent 可调用工具。
 5. 初始化大模型。
 6. 使用 `create_deep_agent()` 创建 DeepAgent。
 7. 使用 `invoke()` 非流式执行。
@@ -127,41 +127,36 @@ TAVILY_API_KEY=你的_TAVILY_API_KEY
 
 DeepAgents 需要通过工具与外部世界交互。本章使用 `TavilyClient` 封装一个简单的互联网搜索工具。
 
-```python
-import os
-from typing import Literal
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+
+
 
 from dotenv import load_dotenv, find_dotenv
-from langchain.tools import tool
+import { tool } from "@langchain/core/tools";
 from tavily import TavilyClient
 
-load_dotenv(find_dotenv())
+// env loaded via dotenv/config
+tavily_key = process.env.TAVILY_API_KEY
 
-tavily_key = os.getenv("TAVILY_API_KEY")
-
-# Tavily 客户端负责真正的联网搜索，工具函数中会复用这个客户端
-tavily_client = TavilyClient(api_key=tavily_key)
+// Tavily 客户端负责真正的联网搜索，工具函数中会复用这个客户端
+tavily_client = TavilyClient(apiKey:tavily_key)
 
 
-@tool
-def internet_search(
-    query: str,
-    max_results: int = 5,
-    topic: Literal["news", "finance", "general"] = "general",
-    include_raw_content: bool = False,
-):
-    """
+// tool(...)
+function internet_search(query: string, max_results: number = 5, topic: Literal["news", "finance", "general"] = "general", include_raw_content: boolean = false,) {
+    /* 
     互联网搜索工具
 
     DeepAgent 会根据工具描述和参数签名，自动决定是否调用该工具
     :param query: 搜索关键词
     :param max_results: 返回结果数量
     :param topic: 查询主题，可选 news、finance、general
-    :param include_raw_content: 是否返回更详细的原文内容，include_raw_content=False 时返回摘要内容；True 时会尝试返回更完整的网页原文
+    :param include_raw_content: 是否返回更详细的原文内容，include_raw_content=false 时返回摘要内容；true 时会尝试返回更完整的网页原文
     :return: Tavily 搜索结果
-    """
+     */
     print(
-        f"开始调用网络搜索工具，核心参数为：{query},{max_results},{topic},{include_raw_content}"
+        `开始调用网络搜索工具，核心参数为：${query},${max_results},${topic},${include_raw_content}`
     )
     return tavily_client.search(
         query=query,
@@ -169,9 +164,11 @@ def internet_search(
         topic=topic,
         include_raw_content=include_raw_content,
     )
+
+
 ```
 
-这里最关键的是 `@tool` 装饰器。它会把一个普通 Python 函数包装成 LangChain 工具，让 Agent 能够在推理过程中调用它。
+这里最关键的是 `@tool` 装饰器。它会把一个普通 TypeScript 函数包装成 LangChain 工具，让 Agent 能够在推理过程中调用它。
 
 工具的函数签名和注释也很重要。模型会根据工具名称、参数类型和描述判断什么时候该调用这个工具、应该传什么参数。如果工具描述太含糊，模型就更容易误用。
 
@@ -179,15 +176,17 @@ def internet_search(
 
 接下来初始化大模型对象：
 
-```python
-from langchain.chat_models import init_chat_model
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+import { ChatOpenAI } from "@langchain/openai";
+llm_name = process.env.LLM_QWEN_MAX
 
-llm_name = os.getenv("LLM_QWEN_MAX")
-
-llm = init_chat_model(
+llm = new new ChatOpenAI(
     model=llm_name,
-    model_provider="openai",
+    
 )
+
+
 ```
 
 这里的 `llm` 是 DeepAgent 做判断和生成回复时使用的模型对象。无论是普通 Agent 还是 DeepAgent，都必须有模型参与决策。
@@ -196,19 +195,22 @@ llm = init_chat_model(
 
 创建 DeepAgent 的核心函数是 `create_deep_agent()`。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from deepagents import create_deep_agent
 
-# 当前示例不配置子智能体，重点观察“主智能体 + 搜索工具”的基本流程
+// 当前示例不配置子智能体，重点观察“主智能体 + 搜索工具”的基本流程
 deep_agent = create_deep_agent(
     model=llm,
     tools=[internet_search],
     subagents=[],
-    system_prompt="""
+    system_prompt=/* 
     你是一名严谨的研究员，可以使用 internet_search 工具检索网络信息。
     请根据检索结果进行归纳、分析和交叉验证，生成一份结构清晰、信息可靠的中文报告。
-    """,
+     */,
 )
+
+
 ```
 
 先看四个核心参数：
@@ -226,8 +228,9 @@ deep_agent = create_deep_agent(
 
 最小示例先使用 `invoke()` 执行：
 
-```python
-# 非流式执行，invoke 会等整条 agent 链路完成后，一次性返回最终状态
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 非流式执行，invoke 会等整条 agent 链路完成后，一次性返回最终状态
 result = deep_agent.invoke(
     {
         "messages": [
@@ -239,21 +242,26 @@ result = deep_agent.invoke(
     }
 )
 
-# result 中会保留完整消息轨迹，便于观察模型决策、工具返回和最终回答
-print(result)
+// result 中会保留完整消息轨迹，便于观察模型决策、工具返回和最终回答
+console.log(result)
 
-# messages 的最后一条通常就是 DeepAgent 整理后的最终回答
-print(result["messages"][-1].content)
+// messages 的最后一条通常就是 DeepAgent 整理后的最终回答
+console.log(result["messages"][-1].content)
+
+
 ```
 
 注意入参不是简单字符串，而是一个包含 `messages` 的字典：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "messages": [
         {"role": "user", "content": "用户问题"}
     ]
 }
+
+
 ```
 
 这是因为 DeepAgents 底层沿用了 LangGraph / LangChain 的消息模型，整个执行过程都会围绕 `messages` 传递状态。
@@ -377,7 +385,8 @@ result = {
 
 第一步，用户并不是直接调用大模型，而是把问题交给 `deep_agent`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 result = deep_agent.invoke(
     {
         "messages": [
@@ -388,6 +397,8 @@ result = deep_agent.invoke(
         ]
     }
 )
+
+
 ```
 
 这一步传入的是 `messages`，DeepAgents 会先把这条用户消息包装成 `HumanMessage`，放进本次执行状态中。
@@ -422,12 +433,15 @@ AIMessage(
 
 这里要注意：这条 `AIMessage` 还不是最终回答。它的 `content` 为空，但 `tool_calls` 有值，意思是模型在告诉 Agent：“下一步请调用 `internet_search` 工具，并传入这些参数。”
 
-第三步，Agent 根据 `tool_calls` 真正去执行工具，也就是调用我们前面定义的 Python 函数：
+第三步，Agent 根据 `tool_calls` 真正去执行工具，也就是调用我们前面定义的 TypeScript 函数：
 
-```python
-@tool
-def internet_search(query: str, max_results: int = 5, ...):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// tool(...)
+function internet_search(query: string, max_results: number = 5, ...) {
     return tavily_client.search(...)
+
+
 ```
 
 工具执行完成后，会生成一条 `ToolMessage`。这条消息里保存的是 Tavily 返回的原始搜索结果，通常是结构化数据，里面可能包含标题、链接、摘要、发布时间等信息。
@@ -459,8 +473,11 @@ AIMessage(
 
 所以我们取最终回复时，通常直接取最后一条消息：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 final_answer = result["messages"][-1].content
+
+
 ```
 
 如果只关心最终报告，读取最后一条消息即可；如果要调试 Agent 的执行链路，再查看完整的 `result`。
@@ -469,15 +486,18 @@ final_answer = result["messages"][-1].content
 
 它是 Agent 工具调用的核心。
 
-模型本身并不会主动扫描你的 Python 代码，也不会自己知道项目里有哪些函数。真正发生的是：当我们通过 `create_deep_agent()` 创建智能体时，已经把工具列表传给了 Agent。
+模型本身并不会主动扫描你的 TypeScript 代码，也不会自己知道项目里有哪些函数。真正发生的是：当我们通过 `create_deep_agent()` 创建智能体时，已经把工具列表传给了 Agent。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 deep_agent = create_deep_agent(
     model=llm,
     tools=[internet_search],
     subagents=[],
     system_prompt="..."
 )
+
+
 ```
 
 执行 `invoke()` 时，Agent 会把 `internet_search` 的名称、描述和参数结构整理给模型。模型读完以后，才会决定是否生成 `tool_calls`。
@@ -544,9 +564,10 @@ deep_agent = create_deep_agent(
 
 把 `invoke()` 换成 `stream()` 后，返回值就不再是完整结果，而是一个可以不断迭代的流：
 
-```python
-# 流式执行，stream 会在每个图节点完成后产出一个 chunk
-# 常见节点包括 model（模型决策或最终回答）和 tools（工具执行结果）
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 流式执行，stream 会在每个图节点完成后产出一个 chunk
+// 常见节点包括 model（模型决策或最终回答）和 tools（工具执行结果）
 stream = deep_agent.stream(
     {
         "messages": [
@@ -558,31 +579,39 @@ stream = deep_agent.stream(
     }
 )
 
-# 每个 chunk 是一个按节点名组织的字典
-for chunk in stream:
-    print(chunk)
+// 每个 chunk 是一个按节点名组织的字典
+for (const chunk of stream) {
+    console.log(chunk)
+
+
 ```
 
 每个 `chunk` 都表示某个节点刚刚产生了一次状态更新。由于 DeepAgents 底层基于 LangGraph，流式输出会带有节点信息。
 
 简化来看，常见的 `chunk` 可能长这样：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "model": {
         "messages": [AIMessage(content="", tool_calls=[...])]
     }
 }
+
+
 ```
 
 或者：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "tools": {
         "messages": [ToolMessage(content="工具返回结果...")]
     }
 }
+
+
 ```
 
 解析流式输出时，重点看两层信息：
@@ -611,7 +640,8 @@ for chunk in stream:
 
 本章代码里最常见的就是这一类。模型读完用户问题后，发现需要联网搜索，于是生成一个 `tool_calls`，工具名是 `internet_search`。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "model": {
         "messages": [
@@ -632,6 +662,8 @@ for chunk in stream:
         ]
     }
 }
+
+
 ```
 
 这个状态的重点是：`content` 为空，`tool_calls` 有值。说明模型还没有回答用户，而是在告诉 Agent：“下一步请调用这个工具。”
@@ -640,7 +672,8 @@ for chunk in stream:
 
 当 Agent 真正执行完 `internet_search` 后，会从 `tools` 节点产出 `ToolMessage`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "tools": {
         "messages": [
@@ -652,6 +685,8 @@ for chunk in stream:
         ]
     }
 }
+
+
 ```
 
 这个状态的重点是：外层节点名变成了 `tools`。此时不是模型在思考，而是工具已经执行完，并把原始结果交回给 Agent。
@@ -660,7 +695,8 @@ for chunk in stream:
 
 本章还没有真正配置子智能体，所以这类状态通常不会在当前示例里出现。但后面第 3 章加入 `subagents` 后，如果模型决定把任务委派给子智能体，就会看到特殊工具 `task`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "model": {
         "messages": [
@@ -680,6 +716,8 @@ for chunk in stream:
         ]
     }
 }
+
+
 ```
 
 `task` 本质上也是一次工具调用，只是它调用的不是普通 Python 工具，而是 DeepAgents 的子智能体调度入口。解析时只要看到 `tool_call["name"] == "task"`，就可以把它识别成“正在分派给子智能体”。
@@ -688,7 +726,8 @@ for chunk in stream:
 
 当工具结果已经返回，模型完成整理后，会再次从 `model` 节点产出消息。这一次没有 `tool_calls`，而是有真正的 `content`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {
     "model": {
         "messages": [
@@ -699,23 +738,29 @@ for chunk in stream:
         ]
     }
 }
+
+
 ```
 
 这个状态说明 Agent 链路已经收束，模型不再继续调用工具或子智能体，而是把最终结果返回给用户。
 
 除了上面四类业务事件，实际输出中还可能看到一些中间件节点，例如 `PatchToolCallsMiddleware.before_agent`、`TodoListMiddleware.after_model`。这些节点可能不包含 `messages`，或者不是我们要展示给用户的业务进度，所以后面的解析代码会用下面这句过滤掉：
 
-```python
-if not state or "messages" not in state:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+if (not state || "messages" not in state) {
     continue
+
+
 ```
 
 ### 3.5 解析 chunk 的完整代码
 
 项目对应文件路径：`deepsearch-agents/examples/2-deep-agent-streaming-chunks.ts`
 
-```python
-# 流式执行，stream 会在每个图节点完成后产出一个 chunk
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// 流式执行，stream 会在每个图节点完成后产出一个 chunk
 stream = deep_agent.stream(
     {
         "messages": [
@@ -727,70 +772,80 @@ stream = deep_agent.stream(
     }
 )
 
-for chunk in stream:
-    # chunk 是一个按节点名组织的字典，例如
-    # {"model": {"messages": [...]}} 或 {"tools": {"messages": [...]}}
-    for node_name, state in chunk.items():
-        # DeepAgents 内部中间件也可能产出空状态或非消息状态，这里只解析消息类状态
-        if not state or "messages" not in state:
+for (const chunk of stream) {
+    // chunk 是一个按节点名组织的字典，例如
+    // {"model": {"messages": [...]}} 或 {"tools": {"messages": [...]}}
+    for (const node_name, state of chunk.items()) {
+        // DeepAgents 内部中间件也可能产出空状态或非消息状态，这里只解析消息类状态
+        if (not state || "messages" not in state) {
             continue
 
         messages = state["messages"]
 
-        if not messages or not isinstance(messages, list):
+        if (not messages || not isinstance(messages, list)) {
             continue
 
-        # 每个 chunk 的最后一条消息，通常就是这个节点本次产出的核心信息
+        // 每个 chunk 的最后一条消息，通常就是这个节点本次产出的核心信息
         last_msg = messages[-1]
 
-        if node_name == "model":
-            # model 节点有两类重点事件：
-            # 1. tool_calls 非空，模型决定下一步调用工具或子智能体
-            # 2. content 非空，模型已经生成最终回答
-            if last_msg.tool_calls:
-                for tool_call in last_msg.tool_calls:
-                    if tool_call["name"] == "task":
+        if (node_name == "model") {
+            // model 节点有两类重点事件：
+            // 1. tool_calls 非空，模型决定下一步调用工具或子智能体
+            // 2. content 非空，模型已经生成最终回答
+            if (last_msg.tool_calls) {
+                for (const tool_call of last_msg.tool_calls) {
+                    if (tool_call["name"] == "task") {
                         print(
-                            f"【大模型】决定调用子智能体：{tool_call['args']['subagent_type']}"
+                            `【大模型】决定调用子智能体：${tool_call['args']['subagent_type']}`
                         )
-                    else:
+                    } else {
                         print(
-                            f"【大模型】决定调用工具：{tool_call['name']} 传入的参数：{tool_call['args']}"
+                            `【大模型】决定调用工具：${tool_call['name']} 传入的参数：${tool_call['args']}`
                         )
 
-            elif last_msg.content:
-                print(f"【大模型】最终执行的结果：{last_msg.content}")
+            } else if (last_msg.content) {
+                console.log(`【大模型】最终执行的结果：${last_msg.content}`)
 
-        elif node_name == "tools":
-            # tools 节点返回的是具体工具的执行结果，通常可以推送给前端展示执行进度
+        } else if (node_name == "tools") {
+            // tools 节点返回的是具体工具的执行结果，通常可以推送给前端展示执行进度
             tool_return_result = last_msg.content[:100] + "..."
             tool_name = last_msg.name
-            print(f"【agent】调用了{tool_name}工具，返回的结果为：{tool_return_result}")
+            console.log(`【agent】调用了${tool_name}工具，返回的结果为：${tool_return_result}`)
+
+
 ```
 
 这段代码里有几个细节要特别注意。
 
 **第一，**外层循环取的是 `node_name` 和 `state`：
 
-```python
-for node_name, state in chunk.items():
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+for (const node_name, state of chunk.items()) {
+
 ```
 
 `node_name` 用来判断当前是哪类节点产生了输出，例如 `model` 或 `tools`。`state` 里才是真正的状态数据。
 
 **第二，**有些中间件节点不包含 `messages`，要先跳过：
 
-```python
-if not state or "messages" not in state:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+if (not state || "messages" not in state) {
     continue
+
+
 ```
 
 DeepAgents 内部可能会出现一些中间件节点，例如 `TodoListMiddleware.after_model`。它们对框架执行有意义，但不一定是我们要展示给用户的业务事件。
 
 **第三，**只取 `messages[-1]`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 last_msg = messages[-1]
+
+
 ```
 
 因为每个状态更新里可能包含多条消息，但当前这次更新最关键的一条通常在最后。
@@ -841,7 +896,7 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 
 ### 3.6 对接前端时怎么展示
 
-虽然本章还没有写 FastAPI 接口，但可以提前建立后端事件和前端展示之间的对应关系。
+虽然本章还没有写 Next.js / Hono / Fastify 接口，但可以提前建立后端事件和前端展示之间的对应关系。
 
 | 后端解析出的事件                   | 前端可以展示成什么       |
 | ---------------------------------- | ------------------------ |

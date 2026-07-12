@@ -505,7 +505,7 @@ ollama list
 
 真正的开发目标通常是：
 
-- 在 Python 代码里调用本地模型
+- 在 TypeScript 代码里调用本地模型
 - 让本地模型也能接 Prompt、Parser、LCEL、Agent
 - 让本地模型和云端模型一样，进入统一的 LangChain 生态
 
@@ -550,15 +550,18 @@ ollama list
 
 最简单的写法可以这样：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from langchain_ollama import ChatOllama
 
 model = ChatOllama(
     model="qwen:4b",
-    base_url="http://localhost:11434",
+    configuration:{ baseURL:"http://localhost:11434",
 )
 
-print(model.invoke("什么是 LangChain，100 字以内").content)
+console.log(model.invoke("什么是 LangChain，100 字以内").content)
+
+
 ```
 
 这和你在前面章节里学的“字符串 `invoke()`”几乎是一样的，只是端点从云端换成了本地。
@@ -567,14 +570,17 @@ print(model.invoke("什么是 LangChain，100 字以内").content)
 
 如果你希望和 [第 13 章 提示词与消息模板](13-提示词与消息模板.md) 保持一致，也可以传消息列表：
 
-```python
-from langchain_core.messages import HumanMessage
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+import { HumanMessage } from "@langchain/core/messages";
 from langchain_ollama import ChatOllama
 
 ollama_llm = ChatOllama(model="qwen3:8b")
 messages = [HumanMessage(content="你好，请介绍一下你自己")]
 resp = ollama_llm.invoke(messages)
-print(resp.content)
+console.log(resp.content)
+
+
 ```
 
 这种写法的价值在于：  
@@ -591,11 +597,14 @@ print(resp.content)
 
 比如：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 ChatOllama(
     model="qwen3:8b",
-    base_url="http://localhost:11434",
+    configuration:{ baseURL:"http://localhost:11434",
 )
+
+
 ```
 
 这在教学上也更直观，因为你能明确知道自己连的是哪个服务地址。

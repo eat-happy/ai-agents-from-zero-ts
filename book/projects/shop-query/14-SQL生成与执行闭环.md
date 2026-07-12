@@ -168,12 +168,13 @@ select ...
 
 项目对应文件路径：`shopkeeper-agent/app/agent/nodes/generate_sql.ts`
 
-```python
-async def generate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function generate_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
     writer = runtime.stream_writer
     writer("生成SQL")
 
-    # 这些上下文都由前置节点准备完成，模型只在给定表、字段、指标口径范围内生成 SQL
+    // 这些上下文都由前置节点准备完成，模型只在给定表、字段、指标口径范围内生成 SQL
     table_infos = state["table_infos"]
     metric_infos = state["metric_infos"]
     date_info = state["date_info"]
@@ -185,31 +186,36 @@ async def generate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]
         input_variables=["table_infos", "metric_infos", "date_info", "db_info", "query"],
     )
 
-    # 生成 SQL 只需要一段纯文本，所以这里使用 StrOutputParser
+    // 生成 SQL 只需要一段纯文本，所以这里使用 StrOutputParser
     output_parser = StrOutputParser()
     chain = prompt | llm | output_parser
 
     result = await chain.ainvoke(
         {
-            # YAML 更适合放进提示词：保留嵌套结构、顺序和中文说明，方便模型理解表字段关系
-            "table_infos": yaml.dump(table_infos, allow_unicode=True, sort_keys=False),
-            "metric_infos": yaml.dump(metric_infos, allow_unicode=True, sort_keys=False),
-            "date_info": yaml.dump(date_info, allow_unicode=True, sort_keys=False),
-            "db_info": yaml.dump(db_info, allow_unicode=True, sort_keys=False),
+            // YAML 更适合放进提示词：保留嵌套结构、顺序和中文说明，方便模型理解表字段关系
+            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
+            "metric_infos": yaml.dump(metric_infos, allow_unicode=true, sort_keys=false),
+            "date_info": yaml.dump(date_info, allow_unicode=true, sort_keys=false),
+            "db_info": yaml.dump(db_info, allow_unicode=true, sort_keys=false),
             "query": query,
         }
     )
 
-    logger.info(f"生成的SQL：{result}")
+    console.log(`生成的SQL：${result}`)
     return {"sql": result}
+
+
 ```
 
 这段代码里有两个点值得注意。
 
 第一，结构化上下文会先转成 YAML：
 
-```python
-yaml.dump(table_infos, allow_unicode=True, sort_keys=False)
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+
+
 ```
 
 `allow_unicode=True` 可以保留中文，`sort_keys=False` 可以保留字段原始顺序。相比直接把 Python 对象转成字符串，YAML 更适合放进提示词。
@@ -250,32 +256,38 @@ Unknown column 'd.region_name1' in 'where clause'
 
 项目对应文件路径：`shopkeeper-agent/app/agent/nodes/validate_sql.ts`
 
-```python
-async def validate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function validate_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
     writer = runtime.stream_writer
     writer("校验SQL")
 
-    # 读取 generate_sql 写入状态的 SQL。
+    // 读取 generate_sql 写入状态的 SQL。
     sql = state["sql"]
 
-    # SQL 可用性必须交给真实数仓判断，这里从运行时 context 中取 DW Repository。
+    // SQL 可用性必须交给真实数仓判断，这里从运行时 context 中取 DW Repository。
     dw_mysql_repository: DWMySQLRepository = runtime.context["dw_mysql_repository"]
 
-    try:
-        # validate 内部使用 explain <sql>，只关心数据库能否成功解析这条 SQL。
+    try {
+        // validate 内部使用 explain <sql>，只关心数据库能否成功解析这条 SQL。
         await dw_mysql_repository.validate(sql)
-        logger.info("SQL语法正确")
-        return {"error": None}
-    except Exception as e:
-        # 不直接抛异常，而是把错误信息写入 state，交给条件边判断。
-        logger.info(f"SQL语法错误：{str(e)}")
-        return {"error": str(e)}
+        console.log("SQL语法正确")
+        return { error: null }
+    } catch (e) {
+        // 不直接抛异常，而是把错误信息写入 state，交给条件边判断。
+        console.log(`SQL语法错误：${str(e)}`)
+        return {"error": string(e)}
+
+
 ```
 
 校验失败时，节点没有直接抛异常，而是把错误转成字符串，写入状态：
 
-```python
-return {"error": str(e)}
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+return {"error": string(e)}
+
+
 ```
 
 这是为了交给 LangGraph 的条件分支处理。
@@ -286,11 +298,14 @@ return {"error": str(e)}
 
 项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
 
-```python
-async def validate(self, sql: str):
-    # 用 explain 让数据库解析 SQL，提前发现语法、表名、字段名等问题。
-    sql = f"explain {sql}"
-    await self.session.execute(text(sql))
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function validate(self, sql: string) {
+    // 用 explain 让数据库解析 SQL，提前发现语法、表名、字段名等问题。
+    sql = `explain ${sql}`
+    await this.session.execute(text(sql))
+
+
 ```
 
 这里不需要关心 `EXPLAIN` 的返回值，因为当前只关心一件事：**这条 SQL 能不能被数据库正常解析？**
@@ -321,17 +336,20 @@ flowchart TD
 
 项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 graph_builder.add_edge("generate_sql", "validate_sql")
 
 graph_builder.add_conditional_edges(
     source="validate_sql",
-    path=lambda state: "run_sql" if state["error"] is None else "correct_sql",
+    path=lambda state: "run_sql" if state["error"] is null else "correct_sql",
     path_map={"run_sql": "run_sql", "correct_sql": "correct_sql"},
 )
 
 graph_builder.add_edge("correct_sql", "run_sql")
 graph_builder.add_edge("run_sql", END)
+
+
 ```
 
 它表达的逻辑是：
@@ -398,19 +416,20 @@ error  # 数据库返回的错误信息
 
 项目对应文件路径：`shopkeeper-agent/app/agent/nodes/correct_sql.ts`
 
-```python
-async def correct_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function correct_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
     writer = runtime.stream_writer
     writer("校正SQL")
 
-    # 校正 SQL 仍然需要完整上下文，避免模型只根据报错修语法却改丢业务语义
+    // 校正 SQL 仍然需要完整上下文，避免模型只根据报错修语法却改丢业务语义
     table_infos = state["table_infos"]
     metric_infos = state["metric_infos"]
     date_info = state["date_info"]
     db_info = state["db_info"]
     query = state["query"]
 
-    # sql 是待修正的候选 SQL，error 是数据库 explain 返回的具体错误信息
+    // sql 是待修正的候选 SQL，error 是数据库 explain 返回的具体错误信息
     sql = state["sql"]
     error = state["error"]
 
@@ -432,19 +451,21 @@ async def correct_sql(state: DataAgentState, runtime: Runtime[DataAgentContext])
 
     result = await chain.ainvoke(
         {
-            # 与生成节点保持一致，用 YAML 向模型提供稳定、可读的结构化上下文
-            "table_infos": yaml.dump(table_infos, allow_unicode=True, sort_keys=False),
-            "metric_infos": yaml.dump(metric_infos, allow_unicode=True, sort_keys=False),
-            "date_info": yaml.dump(date_info, allow_unicode=True, sort_keys=False),
-            "db_info": yaml.dump(db_info, allow_unicode=True, sort_keys=False),
+            // 与生成节点保持一致，用 YAML 向模型提供稳定、可读的结构化上下文
+            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
+            "metric_infos": yaml.dump(metric_infos, allow_unicode=true, sort_keys=false),
+            "date_info": yaml.dump(date_info, allow_unicode=true, sort_keys=false),
+            "db_info": yaml.dump(db_info, allow_unicode=true, sort_keys=false),
             "query": query,
             "sql": sql,
             "error": error,
         }
     )
 
-    logger.info(f"校正后的SQL：{result}")
+    console.log(`校正后的SQL：${result}`)
     return {"sql": result}
+
+
 ```
 
 整体结构和 `generate_sql` 很像：
@@ -458,8 +479,11 @@ async def correct_sql(state: DataAgentState, runtime: Runtime[DataAgentContext])
 
 区别在于，`correct_sql` 多传了 `sql` 和 `error`。最后返回的仍然是：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 return {"sql": result}
+
+
 ```
 
 也就是用修正后的 SQL 覆盖原来的错误 SQL。
@@ -472,19 +496,22 @@ return {"sql": result}
 
 项目对应文件路径：`shopkeeper-agent/app/agent/nodes/run_sql.ts`
 
-```python
-async def run_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function run_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
     writer = runtime.stream_writer
     writer("执行SQL")
 
-    # 这里拿到的是 generate_sql 生成的 SQL，
-    # 或 correct_sql 修正后覆盖进去的 SQL。
+    // 这里拿到的是 generate_sql 生成的 SQL，
+    // 或 correct_sql 修正后覆盖进去的 SQL。
     sql = state["sql"]
     dw_mysql_repository = runtime.context["dw_mysql_repository"]
 
     result = await dw_mysql_repository.run(sql)
 
-    logger.info(f"SQL执行结果：{result}")
+    console.log(`SQL执行结果：${result}`)
+
+
 ```
 
 这段代码很短，因为真正的数据库访问被封装到了 `DWMySQLRepository`。
@@ -504,27 +531,36 @@ run_sql(...)
 
 项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
 
-```python
-async def run(self, sql: str) -> list[dict]:
-    result = await self.session.execute(text(sql))
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+async function run(self, sql: string): Array<Record<string, any>> {
+    result = await this.session.execute(text(sql))
     return [dict(row) for row in result.mappings().fetchall()]
+
+
 ```
 
 这里做了两件事。
 
 第一，执行 SQL：
 
-```python
-result = await self.session.execute(text(sql))
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+result = await this.session.execute(text(sql))
+
+
 ```
 
 第二，把查询结果转成字典列表：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 return [dict(row) for row in result.mappings().fetchall()]
+
+
 ```
 
-为什么要转成 `list[dict]`？
+为什么要转成 `Array<Record<string, any>>`？
 
 因为查询结果最终通常要返回给前端。前端更容易消费下面这种结构：
 
@@ -544,12 +580,15 @@ return [dict(row) for row in result.mappings().fetchall()]
 
 本章新增了两个关键状态字段：
 
-```python
-class DataAgentState(TypedDict):
-    # 省略前面已经讲过的字段...
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+type DataAgentState = {
+    // 省略前面已经讲过的字段...
 
-    sql: str    # 生成或校正后的 SQL
-    error: str  # 校验 SQL 时出现的错误信息
+    sql: string    // 生成或校正后的 SQL
+    error: string  // 校验 SQL 时出现的错误信息
+}
+
 ```
 
 它们分别由不同节点读写：
@@ -571,14 +610,20 @@ generate_sql 写入 sql
 
 这里 `error` 在类型上写的是 `str`，但校验通过时会返回：
 
-```python
-{"error": None}
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+{"error": null}
+
+
 ```
 
 如果希望类型更严谨，可以在后续代码里改成：
 
-```python
-error: str | None
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+error: string | null
+
+
 ```
 
 本章先保持当前代码结构不变。

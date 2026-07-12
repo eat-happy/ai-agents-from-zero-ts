@@ -540,8 +540,11 @@ LangChain 官方也明确建议：面对通用文本时，`RecursiveCharacterTex
 
 其中最值得注意的一行是：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 rag_chain = {"context": retriever, "question": RunnablePassthrough()} | prompt | llm
+
+
 ```
 
 上面这一行用的是 [第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md) 里的 **LCEL 管道**写法：把字典、`RunnablePassthrough`、Prompt 与 LLM 用 `|` 串成可执行链。它几乎就是“管道式 RAG”的缩影：

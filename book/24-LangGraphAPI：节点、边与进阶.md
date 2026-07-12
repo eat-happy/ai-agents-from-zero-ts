@@ -25,7 +25,7 @@
 
 ### 1.1 定义
 
-在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 Python 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
+在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 TypeScript 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
 
 如果说 [第 23 章](23-LangGraphAPI：图与状态.md) 重点在讲“图里有哪些共享状态”，那本章开始讲的 Node，重点就在讲：**状态到了某一站之后，要做什么处理。**
 
@@ -63,9 +63,12 @@ Node 是图真正“干活”的地方。前面学过的 Graph、State、Reducer
 
 最常见的节点先从这一种开始记：
 
-```python
-def node(state: MyState) -> dict:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function node(state: MyState): dict {
     return {"some_key": "new_value"}
+
+
 ```
 
 这也是初学者最该先掌握的形态：**读 state，返回局部更新 dict。**
@@ -94,9 +97,12 @@ def node(state: MyState) -> dict:
 
 所以更推荐的写法是：
 
-```python
-def node(state: MyState) -> dict:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function node(state: MyState): dict {
     return {"result": "new_value"}
+
+
 ```
 
 而不推荐把整份 `state` 直接修改后再整体 return。因为那样很容易带来两个问题：
@@ -108,19 +114,25 @@ def node(state: MyState) -> dict:
 
 从代码习惯上看，下面这种写法要尽量避免：
 
-```python
-def query_web(state: MyState) -> dict:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function query_web(state: MyState): dict {
     state["web_result"] = "网络搜索结果"
     return state
+
+
 ```
 
 它看起来省事，但问题是：调用者很难判断这个节点到底负责改哪些字段；如果 State 里有 `messages`、`retrieved_docs` 这类带 Reducer 的字段，整份返回还可能导致重复合并或覆盖误伤。
 
 更推荐的写法是：
 
-```python
-def query_web(state: MyState) -> dict:
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function query_web(state: MyState): dict {
     return {"web_result": "网络搜索结果"}
+
+
 ```
 
 **节点函数内部可以读完整 State，但离开节点时只交出自己的增量更新。** 这条规则和上一章的 Reducer 是一体的：节点负责产出更新，Reducer 负责合并更新。
@@ -134,9 +146,12 @@ def query_web(state: MyState) -> dict:
 
 最常见的写法是：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 graph.add_edge(START, "node_a")
 graph.add_edge("node_a", END)
+
+
 ```
 
 这表示：图从 `node_a` 开始执行，`node_a` 执行完后流程结束。
@@ -163,7 +178,7 @@ graph.add_edge("node_a", END)
 
 这个案例是第 24 章最基础、也最值得先跑通的 Node 例子。它主要演示三件事：
 
-- 节点就是 Python 函数
+- 节点就是 TypeScript 函数
 - 节点除了最基本的 `state` 参数，还可以借助 `partial` 绑定额外参数
 - `add_node(...)` 时除了传节点函数，还可以顺手挂上 `retry_policy`
 
@@ -314,8 +329,11 @@ flowchart TD
 
 最典型的写法就是：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 builder.add_edge("node_a", "node_b")
+
+
 ```
 
 这行代码的意思很简单：`node_a` 跑完，就去 `node_b`，没有判断、没有分支。
@@ -342,8 +360,11 @@ builder.add_edge("node_a", "node_b")
 
 LangGraph 常见写法是：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 graph.add_conditional_edges("node_a", route_fn, mapping)
+
+
 ```
 
 这里可以拆成三部分理解：
@@ -708,7 +729,7 @@ Send、Command、Runtime 容易混，可以用下面这张表来记：
 
 **本章小结：**
 
-- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 Python 函数；除了最常见的 `state -> dict` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
+- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 TypeScript 函数；除了最常见的 `state: Record<string, any>` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
 - **Edge** 决定流程怎么流转。普通边适合固定路径，条件边适合状态驱动分支，入口点和条件入口点则决定图从哪里开始。
 - **Send、Command、Runtime** 是三种常用进阶能力：Send 适合动态并行分发，Command 适合决策节点，Runtime 适合把配置和状态拆开。
 - 这一章的重点在于建立一个完整认知：**节点负责处理，边负责流转，State 负责共享数据，进阶控制原语负责让图在运行时更灵活。** 学完本章后，你应当能够分清 **Node** 和 **Edge** 的职责，知道普通边、条件边、入口点、条件入口点分别适合什么场景，并理解 `Send`、`Command`、`Runtime` 三个进阶能力各自解决什么问题。

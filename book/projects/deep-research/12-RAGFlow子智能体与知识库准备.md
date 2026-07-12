@@ -723,8 +723,11 @@ RAGFlow 是一个独立服务。今天可能只有“电商行业助手”和“
 
 如果我们在代码里写死：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 chat_name = "电商行业助手"
+
+
 ```
 
 那系统只能问一个固定助手，扩展性很差。
@@ -763,33 +766,36 @@ chat_name = "电商行业助手"
 
 项目对应文件路径：`deepsearch-agents/app/ragflow/rag_config.ts`。
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 RAGFlow 连接配置加载模块
 
 集中读取 RAGFlow SDK 需要的 API Key 和服务地址，供原始调用示例与
 LangChain 工具共用。这样后续如果 .env 字段或读取规则调整，只需要改这一处。
-"""
+ */
 
-import os
-from typing import Optional, Tuple
+
+
 
 from dotenv import find_dotenv, load_dotenv
 
 
-def _load_ragflow_env() -> Tuple[Optional[str], Optional[str]]:
-    """
+function _load_ragflow_env(): [string | null, string | null] {
+    /* 
     加载 RAGFlow 环境变量
 
     使用 python-dotenv 自动向上查找 .env，保持和项目其他配置加载方式一致。
-    :return: (api_key, base_url)，缺失配置时对应位置返回 None
-    """
+    :return: (api_key, base_url)，缺失配置时对应位置返回 null
+     */
     load_dotenv(find_dotenv())
 
-    # RAGFlow SDK 初始化只需要这两个核心字段：认证 API Key 和服务基础地址
-    api_key = os.getenv("RAGFLOW_API_KEY")
-    base_url = os.getenv("RAGFLOW_API_URL")
+    // RAGFlow SDK 初始化只需要这两个核心字段：认证 API Key 和服务基础地址
+    apiKey: process.env.RAGFLOW_API_KEY
+    configuration:{ baseURL: process.env.RAGFLOW_API_URL
     return api_key, base_url
+
+
 ```
 
 ### 7.2 可选扩展：用代码创建知识库
@@ -802,33 +808,36 @@ def _load_ragflow_env() -> Tuple[Optional[str], Optional[str]]:
 
 核心代码可以这样理解：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from app.ragflow.rag_config import _load_ragflow_env
 from ragflow_sdk import RAGFlow
 
 
-# RAGFlow SDK 的入口客户端，后续 Dataset、Chat、Session 操作都从这里发起
-api_key, base_url = _load_ragflow_env()
-ragflow_client = RAGFlow(api_key=api_key, base_url=base_url)
+// RAGFlow SDK 的入口客户端，后续 Dataset、Chat、Session 操作都从这里发起
+api_key, configuration:{ baseURL: _load_ragflow_env()
+ragflow_client = RAGFlow(apiKey:api_key, configuration:{ baseURL:base_url)
 
 
-def create_knowledge_base(knowledge_base_name, description):
-    """
+function create_knowledge_base(knowledge_base_name, description) {
+    /* 
     通过代码创建 RAGFlow 知识库
 
     知识库名称和描述要写准确：后续聊天助手会绑定知识库，
     Agent 又会根据助手描述和关联知识库来判断该问哪个助手。
     :param knowledge_base_name: 知识库名称
     :param description: 知识库描述
-    """
-    # RAGFlow SDK 中知识库通常对应 Dataset；Chat 会再绑定一个或多个 Dataset 对外提供问答
-    # embedding_model 需要和 RAGFlow 页面中可用的模型供应商配置保持一致
+     */
+    // RAGFlow SDK 中知识库通常对应 Dataset；Chat 会再绑定一个或多个 Dataset 对外提供问答
+    // embedding_model 需要和 RAGFlow 页面中可用的模型供应商配置保持一致
     ds = ragflow_client.create_dataset(
         name=knowledge_base_name,
         description=description,
         embedding_model="text-embedding-v3@Tongyi-Qianwen",
     )
-    print(f"创建知识库成功：{ds},{ds.id}")
+    console.log(`创建知识库成功：${ds},${ds.id}`)
+
+
 ```
 
 ### 7.3 可选扩展：用代码上传文档
@@ -837,27 +846,28 @@ def create_knowledge_base(knowledge_base_name, description):
 
 精简版流程如下：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 import os.path
 
 
-def upload_file_to_knowledge_base(kb_id, file_paths):
-    """
+function upload_file_to_knowledge_base(kb_id, file_paths) {
+    /* 
     向指定知识库上传一个或多个本地文件
 
     注意：此函数只负责把文件送进 Dataset。上传后仍需要在 RAGFlow 页面或任务中完成解析，
     否则文档还没有切片、向量化，后续聊天助手可能检索不到内容。
     :param kb_id: RAGFlow 知识库 ID，也就是 Dataset ID
     :param file_paths: 本地文件路径列表
-    """
-    # 先根据知识库 ID 查询 Dataset 对象，确认文件会上传到目标知识库
+     */
+    // 先根据知识库 ID 查询 Dataset 对象，确认文件会上传到目标知识库
     datasets = ragflow_client.list_datasets(id=kb_id, page=1, page_size=10)
     dataset = datasets[0]
 
-    # RAGFlow upload_documents 接收的是文档字典列表：
-    # display_name/name 用于页面展示，blob 存放文件二进制内容
+    // RAGFlow upload_documents 接收的是文档字典列表：
+    // display_name/name 用于页面展示，blob 存放文件二进制内容
     document_list = []
-    for file_path in file_paths:
+    for (const file_path of file_paths) {
         file_name = os.path.basename(file_path)
         with open(file_path, "rb") as f:
             blob = f.read()
@@ -865,8 +875,10 @@ def upload_file_to_knowledge_base(kb_id, file_paths):
                 {"display_name": file_name, "name": file_name, "blob": blob}
             )
 
-    # 上传完成后，RAGFlow 侧还要执行解析流程，解析成功后才能被 Chat 检索
+    // 上传完成后，RAGFlow 侧还要执行解析流程，解析成功后才能被 Chat 检索
     dataset.upload_documents(document_list)
+
+
 ```
 
 这个函数只负责“把文件送进 RAGFlow”。上传后仍然要关注解析状态：如果文档没有完成解析，后面的 `create_ask_delete` 即使能连上助手，也可能检索不到有效内容。
@@ -897,48 +909,51 @@ def upload_file_to_knowledge_base(kb_id, file_paths):
 
 ### 8.2 核心代码
 
-```python
-from langchain_core.tools import tool
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+import { tool } from "@langchain/core/tools";
 from ragflow_sdk import RAGFlow
 
 from app.api.monitor import monitor
 from app.ragflow.rag_config import _load_ragflow_env
 
-# 模块级复用 RAGFlow 客户端，避免每次工具调用都重新初始化 SDK 对象
-api_key, base_url = _load_ragflow_env()
-ragflow_client = RAGFlow(api_key=api_key, base_url=base_url)
+// 模块级复用 RAGFlow 客户端，避免每次工具调用都重新初始化 SDK 对象
+api_key, configuration:{ baseURL: _load_ragflow_env()
+ragflow_client = RAGFlow(apiKey:api_key, configuration:{ baseURL:base_url)
 
 
-# @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
-@tool
-def get_assistant_list() -> str:
-    """
+// @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
+// tool(...)
+function get_assistant_list(): str {
+    /* 
     查询 RAGFlow 中有哪些聊天助手，以及每个助手关联了哪些知识库
 
     作用：让模型先了解“哪个助手能回答哪类内部文档问题”，再决定后续要向哪个助手提问。
     调用 create_ask_delete 之前，应先调用本工具确认助手名称。
     :return: 有助手时返回助手名称、功能介绍、关联知识库；无助手或异常时返回中文提示
-    """
-    # 埋点：工具被调用后，前端可以展示当前正在查询 RAGFlow 助手列表
+     */
+    // 埋点：工具被调用后，前端可以展示当前正在查询 RAGFlow 助手列表
     monitor.report_tool(tool_name="ragflow聊天助手列表查询工具：get_assistant_list")
 
-    try:
-        # list_chats 查询的是 RAGFlow 的 Chat 层，不是 Dataset 层
-        # Chat 负责对外问答，Dataset 只负责承载文档
+    try {
+        // list_chats 查询的是 RAGFlow 的 Chat 层，不是 Dataset 层
+        // Chat 负责对外问答，Dataset 只负责承载文档
         chat_list = ragflow_client.list_chats()
-        if not chat_list:
+        if (not chat_list) {
             return "没有任何可用助手"
 
-        # 把每个助手的名称、描述和绑定知识库拼成模型容易阅读的路由信息
+        // 把每个助手的名称、描述和绑定知识库拼成模型容易阅读的路由信息
         count_chat_info = ""
-        for chat in chat_list:
-            # 不同版本 SDK 字段可能为空，这里用 getattr 兼容没有绑定知识库的助手
-            dataset_names = getattr(chat, "kb_names", []) or []
+        for (const chat of chat_list) {
+            // 不同版本 SDK 字段可能为空，这里用 getattr 兼容没有绑定知识库的助手
+            dataset_names = getattr(chat, "kb_names", []) || []
 
-            count_chat_info += f"助手名称:{chat.name};功能介绍：{chat.description}; 关联的知识库：{'、'.join(dataset_names)} \n"
+            count_chat_info += `助手名称:${chat.name};功能介绍：${chat.description}; 关联的知识库：${'、'.join(dataset_names)} \n`
         return count_chat_info
-    except Exception as e:
-        return f"查询助手信息异常，无可用助手,异常信息:{str(e)}"
+    } catch (e) {
+        return `查询助手信息异常，无可用助手,异常信息:${str(e)}`
+
+
 ```
 
 ### 8.3 为什么返回字符串
@@ -997,71 +1012,72 @@ flowchart TD
 
 下面代码沿用前面定义好的 `ragflow_client`、`monitor` 和 `@tool`。
 
-```python
-import json
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 
-
-@tool
-def create_ask_delete(chat_name, question) -> str:
-    """
+// tool(...)
+function create_ask_delete(chat_name, question): str {
+    /* 
     向某个 RAGFlow 聊天助手创建临时会话并完成一次提问
 
     注意：调用此工具之前，必须先调用 get_assistant_list，明确可用助手名称和助手能力边界。
     :param chat_name: 助手名称，必须来自 get_assistant_list 返回结果
     :param question: 本次提问的问题
     :return: RAGFlow 返回的回答文本；异常时返回中文错误提示
-    """
-    # 埋点：记录目标助手和问题，便于前端展示当前知识库检索动作
+     */
+    // 埋点：记录目标助手和问题，便于前端展示当前知识库检索动作
     monitor.report_tool(
         tool_name="ragflow提问助手工具：create_ask_delete",
         args={"chat_name": chat_name, "question": question},
     )
 
-    try:
-        # 先按名称找到 Chat 对象；真正提问时还需要在 Chat 下创建 Session
+    try {
+        // 先按名称找到 Chat 对象；真正提问时还需要在 Chat 下创建 Session
         chats = ragflow_client.list_chats(name=chat_name)
         use_chat = chats[0]
 
-        # 每次工具调用只创建一个临时会话，避免多轮上下文污染当前问题
+        // 每次工具调用只创建一个临时会话，避免多轮上下文污染当前问题
         session = use_chat.create_session(name="temp_session_ask")
 
-        # SDK 暂未直接封装当前流式接口，这里通过底层 post 调用 Chat completions API
+        // SDK 暂未直接封装当前流式接口，这里通过底层 post 调用 Chat completions API
         response = ragflow_client.post(
-            f"/chats/{use_chat.id}/completions",
+            `/chats/${use_chat.id}/completions`,
             {
                 "messages": [{"role": "user", "content": question}],
-                "stream": True,
+                "stream": true,
                 "session_id": session.id,
             },
-            stream=True,
+            stream=true,
         )
         result = ""
-        for line in response.iter_lines(decode_unicode=True):
-            if not line:
+        for (const line of response.iter_lines(decode_unicode=true)) {
+            if (not line) {
                 continue
 
-            # RAGFlow 流式返回遵循 SSE 风格：每行以 data: 开头，[DONE] 表示结束
+            // RAGFlow 流式返回遵循 SSE 风格：每行以 data: 开头，[DONE] 表示结束
             line = line.removeprefix("data:").strip()
-            if line == "[DONE]":
+            if (line == "[DONE]") {
                 break
             data = json.loads(line)
             chunk_data = data.get("data")
-            if not isinstance(chunk_data, dict):
+            if (not isinstance(chunk_data, dict)) {
                 continue
             answer = chunk_data.get("answer")
-            if answer:
-                # 部分流式片段会返回“截至当前的完整答案”，部分会返回增量内容
-                # 这里兼容两种情况，尽量避免重复拼接
-                if answer.startswith(result):
+            if (answer) {
+                // 部分流式片段会返回“截至当前的完整答案”，部分会返回增量内容
+                // 这里兼容两种情况，尽量避免重复拼接
+                if (answer.startswith(result)) {
                     result = answer
-                elif not result.startswith(answer):
+                } else if (not result.startswith(answer)) {
                     result += answer
 
-        # 临时会话只用于本次工具调用，查询结束后删除，避免 RAGFlow 页面堆积无用会话
+        // 临时会话只用于本次工具调用，查询结束后删除，避免 RAGFlow 页面堆积无用会话
         use_chat.delete_sessions(ids=[session.id])
         return result
-    except Exception as e:
-        return f"提问失败，错误原因：{str(e)}"
+    } catch (e) {
+        return `提问失败，错误原因：${str(e)}`
+
+
 ```
 
 ### 9.4 流式结果为什么要做去重兼容
@@ -1094,11 +1110,14 @@ def create_ask_delete(chat_name, question) -> str:
 
 所以实际代码用了一个兼容写法：
 
-```python
-if answer.startswith(result):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+if (answer.startswith(result)) {
     result = answer
-elif not result.startswith(answer):
+} else if (not result.startswith(answer)) {
     result += answer
+
+
 ```
 
 如果新片段已经包含旧结果，就用新片段覆盖；如果新片段是增量内容，就继续拼接。这样可以尽量避免把“根据”“根据文档”“根据文档内容”重复拼成一长串。
@@ -1186,28 +1205,31 @@ RAGFlow 子智能体查到的是内部资料。它应该按提问轮次保留原
 
 代码如下：
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 RAGFlow 知识库子智能体配置模块
 
 将 app/prompt/prompts.yml 中的 ragflow 配置与 RAGFlow 工具组装成
 DeepAgents 可识别的字典式子智能体。主智能体后续会根据 description
 决定是否把企业内部非结构化文档查询任务分派给它。
-"""
+ */
 
 from app.agent.prompts import sub_agents_content
 from app.tools.ragflow_tools import create_ask_delete, get_assistant_list
 
 
-# RAGFlow 子智能体处理内部非结构化文档，与网络搜索助手、数据库查询助手形成互补
-# 它遵循“先查助手列表 -> 再向指定助手提问”的工作顺序
-# tools 列表声明该子智能体可以发现知识库助手，并发起一次性临时会话查询
+// RAGFlow 子智能体处理内部非结构化文档，与网络搜索助手、数据库查询助手形成互补
+// 它遵循“先查助手列表 -> 再向指定助手提问”的工作顺序
+// tools 列表声明该子智能体可以发现知识库助手，并发起一次性临时会话查询
 knowledge_base_agent = {
     "name": sub_agents_content["ragflow"]["name"],
     "description": sub_agents_content["ragflow"]["description"],
     "system_prompt": sub_agents_content["ragflow"]["system_prompt"],
     "tools": [get_assistant_list, create_ask_delete],
 }
+
+
 ```
 
 到这里，三个子智能体就都准备好了：
@@ -1263,9 +1285,12 @@ app/agent/subagents/knowledge_base_agent.ts
 
 ### 12.1 测试助手列表
 
-```python
-if __name__ == "__main__":
-    print(get_assistant_list.invoke({}))
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+if (__name__ == "__main__") {
+    console.log(get_assistant_list.invoke({}))
+
+
 ```
 
 期望看到类似结果：
@@ -1283,15 +1308,18 @@ if __name__ == "__main__":
 
 ### 12.2 测试临时会话提问
 
-```python
-if __name__ == "__main__":
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+if (__name__ == "__main__") {
     result = create_ask_delete.invoke(
         {
             "chat_name": "电商行业助手",
             "question": "如果我是一个电商平台运营负责人，应该怎样制定 2026 年 AI 应用路线图？",
         }
     )
-    print(result)
+    console.log(result)
+
+
 ```
 
 如果页面里能回答，但代码里回答失败，重点检查：

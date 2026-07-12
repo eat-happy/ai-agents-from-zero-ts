@@ -142,49 +142,52 @@ BAAI/bge-large-zh-v1.5
 
 代码如下：
 
-```python
-import asyncio
-from typing import Optional
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+
+
 
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 
 from app.conf.app_config import EmbeddingConfig, app_config
 
 
-class EmbeddingClientManager:
-    def __init__(self, config: EmbeddingConfig):
-        # 客户端在模块导入阶段先不立即创建，避免启动时就发起外部依赖连接
-        self.client: Optional[HuggingFaceEndpointEmbeddings] = None
-        # 保存 Embedding 服务配置，供 init() 时组装服务访问地址使用
-        self.config = config
+class EmbeddingClientManager {
+    constructor(self, config: EmbeddingConfig) {
+        // 客户端在模块导入阶段先不立即创建，避免启动时就发起外部依赖连接
+        this.client: HuggingFaceEndpointEmbeddings | null = null
+        // 保存 Embedding 服务配置，供 init() 时组装服务访问地址使用
+        this.config = config
 
-    def _get_url(self):
-        # 当前项目通过 host + port 访问外部已启动的 Embedding 推理服务
-        return f"http://{self.config.host}:{self.config.port}"
+    function _get_url(self) {
+        // 当前项目通过 host + port 访问外部已启动的 Embedding 推理服务
+        return `http://${this.config.host}:${this.config.port}`
 
-    def init(self):
-        # 在应用启动阶段显式调用，完成真正的客户端初始化
-        self.client = HuggingFaceEndpointEmbeddings(model=self._get_url())
+    function init(self) {
+        // 在应用启动阶段显式调用，完成真正的客户端初始化
+        this.client = HuggingFaceEndpointEmbeddings(model=this._get_url())
 
 
-# 模块级单例，供其他模块按需复用同一个客户端管理器
+// 模块级单例，供其他模块按需复用同一个客户端管理器
 embedding_client_manager = EmbeddingClientManager(app_config.embedding)
 
 
-if __name__ == "__main__":
-    # 本地调试入口：初始化客户端后执行一次最小化向量化调用
+if (__name__ == "__main__") {
+    // 本地调试入口：初始化客户端后执行一次最小化向量化调用
     embedding_client_manager.init()
     client = embedding_client_manager.client
 
-    async def test():
-        # 使用示例文本验证 Embedding 服务是否可正常响应
+    async function test() {
+        // 使用示例文本验证 Embedding 服务是否可正常响应
         text = "What is deep learning?"
         query_result = await client.aembed_query(text)
-        # 只打印前 3 个维度，便于快速确认返回结果结构正确
-        print(query_result[:3])
+        // 只打印前 3 个维度，便于快速确认返回结果结构正确
+        console.log(query_result[:3])
 
-    # 运行调试测试
-    asyncio.run(test())
+    // 运行调试测试
+    await test()
+
+
 ```
 
 执行文件验证，成功：
@@ -208,11 +211,14 @@ if __name__ == "__main__":
 
 #### 1.6.2 config 与 client 的职责
 
-```python
-class EmbeddingClientManager:
-    def __init__(self, config: EmbeddingConfig):
-        self.client: Optional[HuggingFaceEndpointEmbeddings] = None
-        self.config = config
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+class EmbeddingClientManager {
+    constructor(self, config: EmbeddingConfig) {
+        this.client: HuggingFaceEndpointEmbeddings | null = null
+        this.config = config
+
+
 ```
 
 这里有两个核心属性：
@@ -224,9 +230,12 @@ class EmbeddingClientManager:
 
 #### 1.6.3 \_get_url() 的作用与 URL 组成
 
-```python
-def _get_url(self):
-    return f"http://{self.config.host}:{self.config.port}"
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function _get_url(self) {
+    return `http://${this.config.host}:${this.config.port}`
+
+
 ```
 
 这里做的事情并不复杂，但很关键：**把配置文件中的 `host` 和 `port` 统一拼成服务地址**。
@@ -237,9 +246,12 @@ def _get_url(self):
 
 #### 1.6.4 init() 的初始化过程
 
-```python
-def init(self):
-    self.client = HuggingFaceEndpointEmbeddings(model=self._get_url())
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function init(self) {
+    this.client = HuggingFaceEndpointEmbeddings(model=this._get_url())
+
+
 ```
 
 这里最值得注意的是：`model=` 传进去的并不是 Hugging Face 上的模型名称，而是**本地已经部署好的 Embedding 服务地址**。
@@ -315,8 +327,9 @@ def init(self):
 
 先看官方示例里的模型声明：
 
-```python
-from typing import List, Optional
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -329,11 +342,11 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "user_account"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=true)
     name: Mapped[str] = mapped_column(String(30))
-    fullname: Mapped[Optional[str]]
+    fullname: Mapped[string | null]
 
-    addresses: Mapped[List["Address"]] = relationship(
+    addresses: Mapped["Address"[]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -342,11 +355,13 @@ class User(Base):
 class Address(Base):
     __tablename__ = "address"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=true)
     email_address: Mapped[str]
     user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
 
     user: Mapped["User"] = relationship(back_populates="addresses")
+
+
 ```
 
 理解它在表达什么：
@@ -359,25 +374,32 @@ class Address(Base):
 
 接着，创建 `Engine`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from sqlalchemy import create_engine
 
-engine = create_engine("sqlite://", echo=True)
+engine = create_engine("sqlite://", echo=true)
+
+
 ```
 
 这里特别值得补一句：`Engine` 不是“某次查询”，它更像数据库连接层的核心对象，底层会帮我们维护连接池。
 
 再往后，直接根据模型去建表：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 Base.metadata.create_all(engine)
+
+
 ```
 
 这行代码的意思是：**根据前面声明好的模型，自动生成对应的数据表结构**。不过这里也要顺手提醒一下：在我们的项目里，并没有走这条“由 ORM 自动建表”的路线。因为当前项目的数据库和表结构在前面的环境准备阶段就已经初始化好了，所以这里更多是帮助你理解 SQLAlchemy 的能力边界，而不是项目运行时真正依赖的建表方式。
 
 然后是写数据，这样使用 `Session`：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from sqlalchemy.orm import Session
 
 with Session(engine) as session:
@@ -398,6 +420,8 @@ with Session(engine) as session:
 
     session.add_all([spongebob, sandy, patrick])
     session.commit()
+
+
 ```
 
 这一段重点是在说明两件事：
@@ -409,15 +433,18 @@ with Session(engine) as session:
 
 最后，做一次简单查询：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from sqlalchemy import select
 
 session = Session(engine)
 
 stmt = select(User).where(User.name.in_(["spongebob", "sandy"]))
 
-for user in session.scalars(stmt):
-    print(user)
+for (const user of session.scalars(stmt)) {
+    console.log(user)
+
+
 ```
 
 这段代码表达的是：
@@ -440,8 +467,8 @@ for user in session.scalars(stmt):
 
 #### 2.4.1 MySQL 客户端代码实现
 
-```python
-import asyncio
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -453,58 +480,60 @@ from sqlalchemy.ext.asyncio import (
 from app.conf.app_config import DBConfig, app_config
 
 
-class MySQLClientManager:
-    def __init__(self, config: DBConfig):
-        # Engine 是数据库连接层核心对象，底层会维护连接池
-        self.engine: AsyncEngine | None = None
-        # session_factory 用来按需创建新的 AsyncSession
-        self.session_factory = None
-        # 保存数据库配置，后面拼接连接地址要用
-        self.config = config
+class MySQLClientManager {
+    constructor(self, config: DBConfig) {
+        // Engine 是数据库连接层核心对象，底层会维护连接池
+        this.engine: AsyncEngine | null = null
+        // session_factory 用来按需创建新的 any /* AsyncSession */
+        this.session_factory = null
+        // 保存数据库配置，后面拼接连接地址要用
+        this.config = config
 
-    def _get_url(self):
-        # mysql+asyncmy 表示：连接 MySQL，并使用 asyncmy 作为异步驱动
-        return f"mysql+asyncmy://{self.config.user}:{self.config.password}@{self.config.host}:{self.config.port}/{self.config.database}?charset=utf8mb4"
+    function _get_url(self) {
+        // mysql+asyncmy 表示：连接 MySQL，并使用 asyncmy 作为异步驱动
+        return `mysql+asyncmy://${this.config.user}:${this.config.password}@${this.config.host}:${this.config.port}/${this.config.database}?charset=utf8mb4`
 
-    def init(self):
-        # 创建异步 Engine，相当于先把“数据库连接能力”准备好
-        self.engine = create_async_engine(
-            self._get_url(), pool_size=10, pool_pre_ping=True
+    function init(self) {
+        // 创建异步 Engine，相当于先把“数据库连接能力”准备好
+        this.engine = create_async_engine(
+            this._get_url(), pool_size=10, pool_pre_ping=true
         )
-        # 基于 Engine 创建 Session 工厂，后面真正查库时再拿 session
-        self.session_factory = async_sessionmaker(
-            self.engine, autoflush=True, expire_on_commit=False
+        // 基于 Engine 创建 Session 工厂，后面真正查库时再拿 session
+        this.session_factory = async_sessionmaker(
+            this.engine, autoflush=true, expire_on_commit=false
         )
 
-    async def close(self):
-        # 程序结束时释放连接池资源
-        await self.engine.dispose()
+    async function close(self) {
+        // 程序结束时释放连接池资源
+        await this.engine.dispose()
 
 
-# 一套连元数据库，一套连数仓模拟库
+// 一套连元数据库，一套连数仓模拟库
 meta_mysql_client_manager = MySQLClientManager(app_config.db_meta)
 dw_mysql_client_manager = MySQLClientManager(app_config.db_dw)
 
-if __name__ == "__main__":
-    # 这里演示的是数仓库查询，所以先初始化 dw 这一套客户端
+if (__name__ == "__main__") {
+    // 这里演示的是数仓库查询，所以先初始化 dw 这一套客户端
     dw_mysql_client_manager.init()
 
-    async def test():
-        # 通过 session_factory 创建一次数据库会话
+    async function test() {
+        // 通过 session_factory 创建一次数据库会话
         async with dw_mysql_client_manager.session_factory() as session:
             sql = "select * from fact_order limit 10"
-            # text(sql) 表示把原生 SQL 语句交给 SQLAlchemy 执行
+            // text(sql) 表示把原生 SQL 语句交给 SQLAlchemy 执行
             result = await session.execute(text(sql))
 
-            # mappings().fetchall() 会把结果转成“按列名访问”的行对象列表
+            // mappings().fetchall() 会把结果转成“按列名访问”的行对象列表
             rows = result.mappings().fetchall()
 
-            # 下面三行只是为了帮助观察返回结果的结构
-            print(type(rows))
-            print(type(rows[0]))
-            print(rows[0]["order_id"])
+            // 下面三行只是为了帮助观察返回结果的结构
+            console.log(type(rows))
+            console.log(type(rows[0]))
+            console.log(rows[0]["order_id"])
 
-    asyncio.run(test())
+    await test()
+
+
 
 ```
 
@@ -548,25 +577,31 @@ ORD20250101001
 
 这一点也是很多初学者第一次看代码时不太容易立刻理解的地方。当前项目里没有“先在全局创建一个 `Session` 对象再到处传”，而是这样做：
 
-```python
-self.session_factory = async_sessionmaker(
-    self.engine,
-    autoflush=True,
-    expire_on_commit=False,
-    autobegin=True,
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+this.session_factory = async_sessionmaker(
+    this.engine,
+    autoflush=true,
+    expire_on_commit=false,
+    autobegin=true,
 )
+
+
 ```
 
 原因很简单：项目整体是异步风格，后面会在很多地方反复创建 Session，与其每次都手写一遍创建逻辑，不如先做一个统一的 **Session 工厂**。这样后面无论是 API 依赖注入、构建元知识脚本、Agent 执行链路都可以通过：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 async with xxx_mysql_client_manager.session_factory() as session:
     ...
+
+
 ```
 
 来得到一份新的异步会话对象。
 
-所以这里的 `session_factory` 可以看作：**一个专门用来批量、统一、稳定地创建 `AsyncSession` 的工厂。**
+所以这里的 `session_factory` 可以看作：**一个专门用来批量、统一、稳定地创建 `any /* AsyncSession */` 的工厂。**
 
 #### 2.4.4 pool_size、pool_pre_ping、autoflush 参数配置说明
 
@@ -574,12 +609,15 @@ async with xxx_mysql_client_manager.session_factory() as session:
 
 先看 `Engine` 这层：
 
-```python
-self.engine = create_async_engine(
-    url=self._get_url(),
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+this.engine = create_async_engine(
+    url=this._get_url(),
     pool_size=10,
-    pool_pre_ping=True,
+    pool_pre_ping=true,
 )
+
+
 ```
 
 ##### 2.4.4.1 pool_size=10
@@ -594,13 +632,16 @@ self.engine = create_async_engine(
 
 再看 `Session` 这层：
 
-```python
-self.session_factory = async_sessionmaker(
-    self.engine,
-    autoflush=True,
-    expire_on_commit=False,
-    autobegin=True,
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+this.session_factory = async_sessionmaker(
+    this.engine,
+    autoflush=true,
+    expire_on_commit=false,
+    autobegin=true,
 )
+
+
 ```
 
 ##### 2.4.4.3 autoflush=True
@@ -651,8 +692,11 @@ self.session_factory = async_sessionmaker(
 
 这也是为什么测试代码里直接用了：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 await session.execute(text("select * from table_info limit 10"))
+
+
 ```
 
 ---
@@ -678,12 +722,14 @@ await session.execute(text("select * from table_info limit 10"))
 
 例如：
 
-```python
-from loguru import logger
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+const logger = console;
+console.log("starting")
+console.warn("warning")
+console.error("error")
 
-logger.info("starting")
-logger.warning("warning")
-logger.error("error")
+
 ```
 
 直接运行后，就能看到带时间、级别、位置、颜色的日志输出。
@@ -742,16 +788,16 @@ logging:
 
 代码如下：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 import sys
-from pathlib import Path
 
-from loguru import logger
 
+const logger = console;
 from app.conf.app_config import app_config
 from app.core.context import request_id_ctx_var
 
-# 统一日志展示格式，包含时间、级别、请求 ID 和调用位置等关键信息
+// 统一日志展示格式，包含时间、级别、请求 ID 和调用位置等关键信息
 log_format = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
@@ -761,30 +807,30 @@ log_format = (
 )
 
 
-# 通过 Loguru patch 钩子，把上下文中的 request_id 写入每条日志的 extra 字段
-def inject_request_id(record):
+// 通过 Loguru patch 钩子，把上下文中的 request_id 写入每条日志的 extra 字段
+function inject_request_id(record) {
     request_id = request_id_ctx_var.get()
     record["extra"]["request_id"] = request_id
 
 
-# 移除 Loguru 默认的输出目标，避免和项目自定义配置重复打印
+// 移除 Loguru 默认的输出目标，避免和项目自定义配置重复打印
 logger.remove()
 
-# 生成带 request_id 注入能力的 logger，后续业务代码统一使用这个实例
+// 生成带 request_id 注入能力的 logger，后续业务代码统一使用这个实例
 logger = logger.patch(inject_request_id)
 
-# 根据配置决定是否输出控制台日志，适合本地开发和容器标准输出采集
-if app_config.logging.console.enable:
+// 根据配置决定是否输出控制台日志，适合本地开发和容器标准输出采集
+if (app_config.logging.console.enable) {
     logger.add(
         sink=sys.stdout,
         level=app_config.logging.console.level,
         format=log_format,
     )
 
-# 根据配置决定是否写入文件日志，并在启动时确保日志目录存在
-if app_config.logging.file.enable:
+// 根据配置决定是否写入文件日志，并在启动时确保日志目录存在
+if (app_config.logging.file.enable) {
     path = Path(app_config.logging.file.path)
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=true, exist_ok=true)
     logger.add(
         sink=path / "app.log",
         level=app_config.logging.file.level,
@@ -793,6 +839,8 @@ if app_config.logging.file.enable:
         retention=app_config.logging.file.retention,
         encoding="utf-8",
     )
+
+
 
 ```
 
@@ -811,16 +859,22 @@ if app_config.logging.file.enable:
 
 `loguru` 之所以“开箱即用”，是因为它自带了一套默认配置。所以，项目如果想使用自己的日志格式和输出策略，第一步通常就要先做：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 logger.remove()
+
+
 ```
 
 它的作用就是：**先把默认日志配置移除掉**。
 
 然后再通过：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 logger.add(...)
+
+
 ```
 
 把我们自己的输出通道加回来。也就是说，这里的整体逻辑是：
@@ -838,7 +892,8 @@ logger.add(...)
 
 这一段里，最值得认真看的其实是 `log_format`。
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 log_format = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
@@ -846,6 +901,8 @@ log_format = (
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
     "<level>{message}</level>"
 )
+
+
 ```
 
 这里不是随便拼一个字符串，而是在定义：**每一条日志最后长什么样**。
@@ -866,18 +923,24 @@ log_format = (
 
 项目对应文件路径：`shopkeeper-agent/app/core/context.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from contextvars import ContextVar
 
 request_id_ctx_var = ContextVar("request_id", default="1")
+
+
 ```
 
 在日志模块里，通过下面这段逻辑把它写进日志的 `extra` 字段：
 
-```python
-def inject_request_id(record):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+function inject_request_id(record) {
     request_id = request_id_ctx_var.get()
     record["extra"]["request_id"] = request_id
+
+
 ```
 
 这一层非常重要。在并发场景下，如果多个请求同时在跑，日志会交错在一起。如果没有一个统一标识，你很难把“同一个请求”的所有日志串起来。
@@ -886,15 +949,19 @@ def inject_request_id(record):
 
 这也是为什么当前项目的日志格式里专门加了：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 <magenta>request_id - {extra[request_id]}</magenta>
+
+
 ```
 
 #### 3.4.5 文件日志输出策略
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 path = Path(app_config.logging.file.path)
-path.mkdir(parents=True, exist_ok=True)
+path.mkdir(parents=true, exist_ok=true)
 logger.add(
     sink=path / "app.log",
     level=app_config.logging.file.level,
@@ -903,6 +970,8 @@ logger.add(
     retention=app_config.logging.file.retention,
     encoding="utf-8",
 )
+
+
 ```
 
 它表达的意思是：

@@ -66,7 +66,7 @@ Dify 会为工作流提供对应的 API 文档入口。
 
 ![Dify 工作流 API 文档入口的界面示意图](images/4/4-1-2-1.png)
 
-第一次学习时，建议你不要跳过这一步。因为后面 Python 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
+第一次学习时，建议你不要跳过这一步。因为后面 TypeScript 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
 
 ### 1.3 创建 API 密钥
 
@@ -247,7 +247,7 @@ Body 选择 `raw`，格式选择 `JSON`。
 
 平台日志的价值非常大，因为它能告诉你：这次请求有没有真正进到工作流；哪个节点报错了；输入变量有没有传对；最终输出是不是和代码侧拿到的一致。
 
-很多时候，问题并不是 Python 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
+很多时候，问题并不是 TypeScript 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
 
 ---
 
@@ -261,115 +261,117 @@ npm install requests
 
 ### 5.2 一份更适合真实项目的示例代码
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 import requests
-import json
 
-# 响应返回模式
-# 流式，基于 SSE（Server-Sent Events）实现类似打字机输出方式的流式返回
+// 响应返回模式
+// 流式，基于 SSE（Server-Sent Events）实现类似打字机输出方式的流式返回
 STREAMING_MODE="streaming"
-# 阻塞式，等待执行完毕后返回结果（流程较长则可能会被中断）。由于 Dify 云/网关限制，请求在约 100 秒无返回后会超时中断
+// 阻塞式，等待执行完毕后返回结果（流程较长则可能会被中断）。由于 Dify 云/网关限制，请求在约 100 秒无返回后会超时中断
 BLOCKING_MODE="blocking"
 
-# 工作流的API_KEY
+// 工作流的API_KEY
 API_KEY="{your key}"
-# Dify base_url，如果是本地部署，替换为 http://localhost/v1
+// Dify base_url，如果是本地部署，替换为 http://localhost/v1
 BASE_URL="https://api.dify.ai/v1"
 
-# 工作流完成标志
+// 工作流完成标志
 WORKFLOW_FINISHED="workflow_finished"
-# 工作流成功标志
+// 工作流成功标志
 WORKFLOW_SUCCESS="succeeded"
 
-# 用于启动工作流
-def stream_dify_workflow(target, api_key=API_KEY, base_url=BASE_URL, username="python_request", mode=STREAMING_MODE):
-    # 拼接用于启动工作流的 url
-    url = f"{base_url}/workflows/run"
+// 用于启动工作流
+function stream_dify_workflow(target, apiKey:API_KEY, configuration:{ baseURL:BASE_URL, username="python_request", mode=STREAMING_MODE) {
+    // 拼接用于启动工作流的 url
+    url = `${base_url}/workflows/run`
 
-    # 拼接头信息，包括API Key和数据类型
+    // 拼接头信息，包括API Key和数据类型
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": `Bearer ${api_key}`,
         "Content-Type": "application/json"
     }
 
-    # 拼接请求体
+    // 拼接请求体
     payload = {
         "inputs": {"target": target},
         "response_mode": mode,
         "user": username
     }
 
-    try:
-        # 使用stream=True保持连接打开
-        with requests.post(url, headers=headers, json=payload, stream=True) as response:
-            if response.status_code != 200:
-                print(f"请求失败，状态码: {response.status_code}")
-                print(response.text)
+    try {
+        // 使用stream=True保持连接打开
+        with requests.post(url, headers=headers, json=payload, stream=true) as response:
+            if (response.status_code != 200) {
+                console.log(`请求失败，状态码: ${response.status_code}`)
+                console.log(response.text)
                 return
 
-            print("=== 开始接收流式响应: ===")
-            # 逐行读取服务器推送的数据
-            for line in response.iter_lines():
-                if line:
-                    # 解码
+            console.log("=== 开始接收流式响应: ===")
+            // 逐行读取服务器推送的数据
+            for (const line of response.iter_lines()) {
+                if (line) {
+                    // 解码
                     decoded_line = line.decode('utf-8')
 
-                    # 将 JSON 中的 Unicode 转义序列（如 \uXXXX）解码为对应字符
+                    // 将 JSON 中的 Unicode 转义序列（如 \uXXXX）解码为对应字符
                     fixed_line = decoded_line.encode("utf-8").decode("unicode_escape")
 
-                    # 打印由二进制解析为 UTF-8 后的响应
-                    print(f"decoded_line: {decoded_line}")
-                    # 解码后换行会导致日志非常乱，一般不打开
-                    # print(f"fixed_line: {fixed_line}")
-                    # print(fixed_line)
+                    // 打印由二进制解析为 UTF-8 后的响应
+                    console.log(`decoded_line: ${decoded_line}`)
+                    // 解码后换行会导致日志非常乱，一般不打开
+                    // console.log(`fixed_line: ${fixed_line}`)
+                    // console.log(fixed_line)
 
-                    # 去除SSE格式前缀
+                    // 去除SSE格式前缀
                     if(decoded_line.startswith("data: ")):
                         decoded_line=decoded_line[6:]
 
-                        try:
-                            # 尝试解析为JSON
+                        try {
+                            // 尝试解析为JSON
                             json_data = json.loads(decoded_line)
                             if(json_data.get("event")==WORKFLOW_FINISHED):
-                                print("---> 工作流执行完毕 <---")
-                                print(f"{json_data.get("data")=}")
+                                console.log("---> 工作流执行完毕 <---")
+                                console.log(`{json_data.get(`data")=}")
                                 data = json_data.get("data")
                                 workflow_status = data.get("status")
-                                if (workflow_status == WORKFLOW_SUCCESS):
-                                    print("---> 工作流执行成功 <---")
+                                if ((workflow_status == WORKFLOW_SUCCESS)) {
+                                    console.log("---> 工作流执行成功 <---")
 
-                                    try:
-                                        # 获取工作流最终输出
+                                    try {
+                                        // 获取工作流最终输出
                                         result = data.get("outputs").get("output")
 
-                                        # 返回结果
+                                        // 返回结果
                                         return result
-                                    except Exception as e:
-                                        print("工作流输出解码错误: ", e)
-                                        print("data: ", data)
-                                        return None
-                                else:
-                                    print("---> 工作流执行失败 <---")
-                                    return None
-                        except Exception as e:
-                            print("JSON解析错误: ", e)
-                            return None
+                                    } catch (e) {
+                                        console.log("工作流输出解码错误: ", e)
+                                        console.log("data: ", data)
+                                        return null
+                                } else {
+                                    console.log("---> 工作流执行失败 <---")
+                                    return null
+                        } catch (e) {
+                            console.log("JSON解析错误: ", e)
+                            return null
 
-            print("=== 流式响应结束 ===")
+            console.log("=== 流式响应结束 ===")
 
-    except requests.exceptions.RequestException as e:
-        print(f"请求发生错误: {e}")
-        return None
+    } catch {
+        console.log(`请求发生错误: ${e}`)
+        return null
 
 
-if __name__ == "__main__":
+if (__name__ == "__main__") {
     result = stream_dify_workflow("新能源发展现状")
-    print("----------> result <----------")
+    console.log("----------> result <----------")
 
-    # 若成功返回，遍历结果列表并打印最终输出（失败时 result 为 None）
-    if result:
-        for item in result:
-            print(item)
+    // 若成功返回，遍历结果列表并打印最终输出（失败时 result 为 null）
+    if (result) {
+        for (const item of result) {
+            console.log(item)
+
+
 ```
 
 ### 5.3 代码里最关键的三件事
@@ -452,9 +454,12 @@ decoded_line: data: {"event":"workflow_finished", "data":{"status":"succeeded", 
 
 例如：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 final_text = outputs["output"][0]
-print(final_text[:300])
+console.log(final_text[:300])
+
+
 ```
 
 ### 6.4 查看 Dify 后台日志
@@ -482,7 +487,7 @@ print(final_text[:300])
 
 **章节思考题：**
 
-1. 从页面里的 Dify 工作流，到 Python 代码调用，中间必须确认哪几个点？
+1. 从页面里的 Dify 工作流，到 TypeScript 代码调用，中间必须确认哪几个点？
 
    **参考思路：** 先确认工作流已发布，再确认 API Key、调用地址、`inputs` 字段、`response_mode`、`user` 和日志入口。页面能跑只是第一步，代码侧还要验证鉴权、参数和返回事件是否一致。
 

@@ -73,7 +73,7 @@
     - [第 12 章 召回信息合并与上下文构建](projects/shop-query/12-召回信息合并与上下文构建.md)
     - [第 13 章 SQL 生成前的信息过滤与补全](projects/shop-query/13-SQL生成前的信息过滤与补全.md)
     - [第 14 章 SQL 生成与执行闭环](projects/shop-query/14-SQL生成与执行闭环.md)
-    - [第 15 章 API 接口基础与 FastAPI 入门](projects/shop-query/15-API接口基础与FastAPI入门.md)
+    - [第 15 章 API 接口基础与 Next.js / Hono / Fastify 入门](projects/shop-query/15-API接口基础与Next.js / Hono / Fastify入门.md)
     - [第 16 章 查询接口实现与依赖组装](projects/shop-query/16-查询接口实现与依赖组装.md)
     - [第 17 章 前后端联调与日志追踪](projects/shop-query/17-前后端联调与日志追踪.md)
   - 深度研搜（已完结）
@@ -91,5 +91,5 @@
     - [第 11 章 数据库查询子智能体与MySQL工具](projects/deep-research/11-数据库查询子智能体与MySQL工具.md)
     - [第 12 章 RAGFlow 子智能体与知识库准备](projects/deep-research/12-RAGFlow子智能体与知识库准备.md)
     - [第 13 章 主智能体搭建与异步执行](projects/deep-research/13-主智能体搭建与异步执行.md)
-    - [第 14 章 FastAPI 接口与项目闭环](projects/deep-research/14-FastAPI接口与项目闭环.md)
+    - [第 14 章 Next.js / Hono / Fastify 接口与项目闭环](projects/deep-research/14-Next.js / Hono / Fastify接口与项目闭环.md)
 - [更新日志](教程更新日志.md)

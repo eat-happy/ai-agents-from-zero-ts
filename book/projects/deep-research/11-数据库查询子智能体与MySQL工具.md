@@ -293,7 +293,7 @@ docker compose --env-file .env -f docs/docker-compose.yaml up -d
 | 创建 `deepsearch-mysql` 容器 | 后续可以通过容器名查看日志或进入容器           |
 | 创建 `deepsearch_db`         | 由 `MYSQL_DATABASE` 控制                       |
 | 导入 `mysql.sql`             | 只在数据卷第一次创建、数据库目录为空时自动执行 |
-| 暴露本机端口 `3307`          | Python 代码通过 `localhost:3307` 连接 MySQL    |
+| 暴露本机端口 `3307`          | TypeScript 代码通过 `localhost:3307` 连接 MySQL    |
 
 检查容器状态：
 
@@ -344,56 +344,56 @@ flowchart LR
 
 先写一个 `get_db_config`，统一从环境变量读取数据库配置：
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 MySQL 数据库查询工具模块
 
 封装数据库查询助手使用的三个 LangChain 工具：
 list_sql_tables 用于发现真实表名，get_table_data 用于预览字段和样例数据，
 execute_sql_query 用于在确认结构后执行自定义查询。
-"""
+ */
 
-import os
 
-from dotenv import load_dotenv
-from langchain_core.tools import tool
+import "dotenv/config";
+import { tool } from "@langchain/core/tools";
 from mysql.connector import Error, connect
 
 from app.api.monitor import monitor
 
-load_dotenv()
-
-
-# 集中读取数据库配置，后续三个工具都复用这份连接参数
-def get_db_config():
-    """
+// env loaded via dotenv/config
+// 集中读取数据库配置，后续三个工具都复用这份连接参数
+function get_db_config() {
+    /* 
     从环境变量读取 MySQL 连接配置
 
     所有数据库工具都通过此函数拿到同一份连接参数，避免每个工具重复读取环境变量
     :return: mysql.connector.connect 可直接使用的连接参数
-    """
+     */
     config = {
-        "host": os.getenv("MYSQL_HOST", "localhost"),
-        "port": int(os.getenv("MYSQL_PORT", "3306")),
-        "user": os.getenv("MYSQL_USER"),
-        "password": os.getenv("MYSQL_PASSWORD"),
-        "database": os.getenv("MYSQL_DATABASE"),
-        "charset": os.getenv("MYSQL_CHARSET", "utf8mb4"),
-        "collation": os.getenv("MYSQL_COLLATION", "utf8mb4_unicode_ci"),
-        "autocommit": True,
-        "sql_mode": os.getenv("MYSQL_SQL_MODE", "TRADITIONAL"),
+        "host": (process.env.MYSQL_HOST ?? "localhost"),
+        "port": number((process.env.MYSQL_PORT ?? "3306")),
+        "user": process.env.MYSQL_USER,
+        "password": process.env.MYSQL_PASSWORD,
+        "database": process.env.MYSQL_DATABASE,
+        "charset": (process.env.MYSQL_CHARSET ?? "utf8mb4"),
+        "collation": (process.env.MYSQL_COLLATION ?? "utf8mb4_unicode_ci"),
+        "autocommit": true,
+        "sql_mode": (process.env.MYSQL_SQL_MODE ?? "TRADITIONAL"),
     }
 
-    # 去掉未配置的可选项，避免把 None 传给 mysql.connector 造成连接参数异常
-    config = {k: v for k, v in config.items() if v is not None}
+    // 去掉未配置的可选项，避免把 null 传给 mysql.connector 造成连接参数异常
+    config = {k: v for k, v in config.items() if v is not null}
 
-    # user/password/database 是本教程工具能正常查询业务库的最小必要配置
+    // user/password/database 是本教程工具能正常查询业务库的最小必要配置
     required_keys = ["user", "password", "database"]
     missing_keys = [k for k in required_keys if k not in config]
-    if missing_keys:
-        raise ValueError(f"缺失数据库核心配置：{', '.join(missing_keys)}")
+    if (missing_keys) {
+        raise ValueError(`缺失数据库核心配置：${', '.join(missing_keys)}`)
 
     return config
+
+
 ```
 
 这里做了两件小事：
@@ -411,346 +411,22 @@ def get_db_config():
 
 核心代码如下：
 
-```python
-@tool
-def list_sql_tables() -> str:
-    """
-    查询当前数据库中所有可用表
-
-    作用：让模型先识别真实可用的表名，方便后续预览表结构和编写自定义 SQL。
-    :return: 有表：可用的表有：表1,表2,表3...
-             没有表：没有可用的表
-             出现异常：查询出现异常：异常信息
-    """
-
-    # 埋点：工具一被调用，前端可以展示当前正在查询数据库表名
-    monitor.report_tool(tool_name="数据库表名查询工具：list_sql_tables", args={})
-
-    # 加载数据库连接信息
-    config = get_db_config()
-
-    # MySQL 查询的固定步骤：
-    # 1. 创建连接
-    # 2. 创建 cursor
-    # 3. 执行 SQL
-    # 4. 获取返回结果
-    # 5. 释放连接和 cursor 资源
-    # 这里捕获异常并返回中文提示，避免工具报错直接中断 Agent 执行链路
-    try:
-        # 使用 with 管理连接和游标，查询结束后自动释放数据库资源
-        with connect(**config) as conn:
-            with conn.cursor() as cursor:
-                sql = "SHOW TABLES"
-                cursor.execute(sql)
-
-                # SHOW TABLES 返回形如：[("drugs",), ("inventory",), ("sales_records",)]
-                tables = cursor.fetchall()
-
-                if not tables:
-                    return "没有可用的表"
-
-                # 取每个元组的第一个元素，拼成模型容易阅读的表名列表
-                table_names = [table[0] for table in tables]
-                return f"可用的表有：{', '.join(table_names)}"
-    except Error as e:
-        return f"查询出现异常：{str(e)}"
-```
-
-这段代码本质上就是 MySQL 查询的标准流程：
-
-```text
-读取连接配置
-  -> connect 建立连接
-  -> cursor 创建游标
-  -> execute 执行 SHOW TABLES
-  -> fetchall 获取结果
-  -> 格式化返回
-```
-
-`with connect(...)` 和 `with conn.cursor()` 可以在代码块结束后自动释放连接和游标，避免资源泄露。
-
-### 5.3 get_table_data：预览字段与样例数据
-
-`get_table_data` 用来读取指定表的前 100 行数据。
-
-它有两个目的：
-
-1. 查询单表数据。
-2. 让模型看到表结构、字段名和数据格式。
-
-核心代码如下：
-
-```python
-@tool
-def get_table_data(table_name) -> str:
-    """
-    查询指定表的前 100 行数据
-
-    当前工具调用之前，应先调用 list_sql_tables 完成表名校验。
-    此工具的作用：
-    1. 完成单表样例数据查询
-    2. 为多表查询提供表结构信息和数据格式参考
-    :param table_name: 表名
-    :return: CSV 格式数据
-             1. 第一行是列信息，列之间使用英文逗号分隔
-             2. 第二行开始是表数据，值之间也使用英文逗号分隔
-             3. 行和行之间使用 \n 分隔
-             4. 至多查询 100 条表数据
-             例如：
-                id,name,age\n -> 列头
-                1,张三,18\n
-                1,张三,18\n
-                1,张三,18\n -> 至多查询 100 条
-    """
-    # 埋点：工具二被调用，前端可以展示当前正在预览哪张表
-    monitor.report_tool(
-        tool_name="数据库表数据查询工具：get_table_data",
-        args={"table_name": table_name},
-    )
-
-    # 获取数据库参数
-    config = get_db_config()
-
-    # 查询流程同样是：连接 -> cursor -> 执行 SQL -> 获取列信息和数据 -> 自动释放资源
-    try:
-        with connect(**config) as conn:
-            with conn.cursor() as cursor:
-                # 教程代码直接拼接表名，重点演示 Agent 查询链路；生产环境应改为白名单校验
-                sql = f"SELECT * FROM {table_name} LIMIT 100"
-                cursor.execute(sql)
-
-                # cursor.description 保存查询结果的列元信息
-                # 例如：[("id", ...), ("name", ...), ("age", ...)]
-                # 如果 SQL 没有结果集，description 可能为 None
-                description = cursor.description
-                if not description:
-                    return f"数据表 {table_name} 暂无数据。"
-
-                # 只取每个列信息元组的第一个元素，也就是列名
-                # 例如：["id", "name", "age"]
-                columns = [desc[0] for desc in description]
-
-                # fetchall 返回表数据，形如：[(1, "张三", 18), (2, "李四", 20)]
-                rows = cursor.fetchall()
-
-                # 把每一行数据从元组转成 CSV 行文本
-                # 例如：(1, "张三", 18) -> "1,张三,18"
-                results = [",".join(map(str, row)) for row in rows]
-
-                # columns 组成 CSV 头部，rows 组成 CSV 数据体
-                # 最终返回：
-                # id,name,age
-                # 1,张三,18
-                header_str = ",".join(columns)
-                data_str = "\n".join(results)
-                return f"{header_str}\n{data_str}"
-    except Error as e:
-        return f"查询出现异常：{str(e)}"
-```
-
-### 5.4 cursor.description 与 CSV 返回格式
-
-执行查询后，`cursor.description` 里保存的是结果集的列信息。
-
-可以把它理解成：
-
-```text
-[
-  ("drug_id", ...),
-  ("generic_name", ...),
-  ("brand_name", ...),
-  ...
-]
-```
-
-我们只需要每个元组里的第一个元素，也就是列名：
-
-```python
-columns = [desc[0] for desc in description]
-```
-
-拿到列名后，再把查询结果转成 CSV 格式：
-
-```text
-drug_id,generic_name,brand_name
-1,阿莫西林胶囊,阿莫仙
-2,布洛芬缓释胶囊,芬必得
-```
-
-CSV 对模型来说比较容易读，它既能看到字段名，也能看到每一列的数据样子。
-
-### 5.5 表名安全与只读边界
-
-当前课程代码重点是演示 Agent 查询流程。在最简写法里，`table_name` 会被拼进 SQL：
-
-```python
-sql = f"SELECT * FROM {table_name} LIMIT 100"
-```
-
-这能帮助初学者看清工具链路，但在真实项目里要小心 SQL 注入风险。
-
-如果先做一层基础清洗，可以从下面这种写法开始理解：
-
-```python
-safe_table_name = table_name.replace("`", "").replace(";", "").split()[0]
-cursor.execute(f"SELECT * FROM {safe_table_name} LIMIT 100")
-```
-
-这段代码做了三件事：
-
-| 处理动作              | 作用                              |
-| --------------------- | --------------------------------- |
-| 去掉反引号字符        | 避免通过反引号构造异常表名        |
-| 去掉分号 `;`          | 降低一条输入里拼接多条 SQL 的风险 |
-| `split()[0]` 取第一段 | 避免表名后面继续夹带额外 SQL 片段 |
-
-在生产环境里，建议增加表名白名单校验，例如先调用 `list_sql_tables` 得到真实表名，然后只允许查询白名单里的表。对于自定义 SQL，也建议限制为只读查询，避免执行 `UPDATE`、`DELETE`、`DROP` 之类高风险语句。
-
-### 5.6 execute_sql_query：执行查询 SQL
-
-`execute_sql_query` 是真正执行查询的工具。
-
-它适合处理：
-
-- 多表关联；
-- 条件筛选；
-- 聚合统计；
-- 排序和分组。
-
-比如查询药品和销售记录：
-
-```sql
-SELECT *
-FROM drugs d
-JOIN sales_records s ON d.drug_id = s.drug_id;
-```
-
-核心代码如下：
-
-```python
-@tool
-def execute_sql_query(query) -> str:
-    """
-    执行自定义 SQL 查询
-
-    切记：执行之前，需要通过 list_sql_tables 明确表名，
-    再通过 get_table_data 明确表结构和数据格式。
-    适合多表关联、筛选、聚合、排序等复杂查询。
-    :param query: 要执行的自定义 SQL 语句
-    :return: CSV 格式数据
-             1. 第一行是列信息，列之间使用英文逗号分隔
-             2. 第二行开始是表数据，值之间也使用英文逗号分隔
-             3. 行和行之间使用 \n 分隔
-             例如：
-                id,name,age\n -> 列头
-                1,张三,18\n
-                1,张三,18\n
-    """
-    # 埋点：记录模型最终生成的 SQL，便于教学时观察是否真的落到了正确表字段上
-    monitor.report_tool(
-        tool_name="数据库表数据查询工具：execute_sql_query", args={"query": query}
-    )
-
-    # 获取数据库参数
-    config = get_db_config()
-
-    # 自定义查询和 get_table_data 的结果处理逻辑一致：
-    # 执行 SQL -> 读取 description 得到列名 -> fetchall 得到数据 -> 拼成 CSV 返回
-    try:
-        with connect(**config) as conn:
-            with conn.cursor() as cursor:
-                # 当前章节依赖提示词约束模型生成只读查询；生产环境建议在工具层限制 SELECT/SHOW
-                cursor.execute(query)
-
-                # 非查询类 SQL 没有结果集描述，这里统一返回提示，避免工具调用直接抛错给模型
-                description = cursor.description
-                if not description:
-                    return f"执行自定义 SQL 语句没有查询结果，SQL 为：{query}"
-
-                # description => [("列1", ...), ("列2", ...)]
-                columns = [desc[0] for desc in description]
-
-                # rows => [(值1, 值2), (值1, 值2)]
-                rows = cursor.fetchall()
-
-                # 每行元组统一转为逗号分隔文本，便于模型读取和后续整理
-                results = [",".join(map(str, row)) for row in rows]
-
-                # 第一行是列名，后续是查询数据
-                header_str = ",".join(columns)
-                data_str = "\n".join(results)
-                return f"{header_str}\n{data_str}"
-    except Error as e:
-        return f"查询出现异常：{str(e)}"
-```
-
-这段代码和 `get_table_data` 很像。区别是：
-
-| 工具                | SQL 来源                       |
-| ------------------- | ------------------------------ |
-| `get_table_data`    | 系统固定生成 `SELECT * ...`    |
-| `execute_sql_query` | 模型根据用户问题生成或整理出来 |
-
-当前项目主要依靠提示词约束它执行查询类 SQL。真实企业项目里，建议在工具层再加一层只读校验，例如只允许 `SELECT` 或 `SHOW` 开头的语句。
-
-### 5.7 本地调试入口
-
-在项目根目录运行：`uv run python -m app.tools.db_tools`
-
-一次真实输出会先看到工具监控事件：
-
-```text
-[Monitor:tool_start] 开始执行工具: 数据库表数据查询工具：execute_sql_query
-```
-
-这说明 `execute_sql_query` 里的 `monitor.report_tool(...)` 已经生效：工具真正执行 SQL 之前，先把“数据库查询工具开始执行”这件事汇报给监控模块。后面接着才是 MySQL 返回的查询结果。
-
-下面是把实际输出压缩后的结构，重点看字段和数据形态，不需要把 100 行结果都放进教程里：
-
-```text
-drug_id,generic_name,brand_name,approval_number,specifications,dosage_form,manufacturer,therapeutic_area,description,created_at,sale_id,drug_id,sale_date,quantity_sold,unit_price,total_amount,customer_name,region,sales_rep
-1,阿莫西林胶囊,阿莫仙,国药准字H20051234,0.25g*24粒,胶囊剂,本公司制药,抗生素,...,2026-05-15 13:45:13,1,1,2025-02-15,200,25.00,5000.00,北京朝阳医院,华北区,北京朝阳销售部
-1,阿莫西林胶囊,阿莫仙,国药准字H20051234,0.25g*24粒,胶囊剂,本公司制药,抗生素,...,2026-05-15 13:45:13,2,1,2025-08-10,500,24.50,12250.00,天津大药房,华北区,天津南开销售分部
-2,布洛芬缓释胶囊,芬必得,国药准字H10900089,0.3g*20粒,胶囊剂,本公司制药,解热镇痛,...,2026-05-15 13:45:13,3,2,2025-01-20,1000,15.00,15000.00,海王星辰连锁,华东区,杭州滨江销售部
-... 其余查询结果省略 ...
-```
-
-这段输出里有几个很值得注意的点：
-
-| 现象                                                          | 说明                                                                              |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| 先出现 `[Monitor:tool_start]`                                 | 说明工具层埋点正常，后续接入前端时可以看到数据库查询进度                          |
-| 输出第一行是 CSV 表头                                         | 工具返回的不是自然语言，而是模型容易继续读取和整理的结构化文本                    |
-| 表头里出现两次 `drug_id`                                      | 这是因为调试 SQL 同时查询了 `drugs` 和 `sales_records`，两张表都有 `drug_id` 字段 |
-| 能看到 `generic_name`、`brand_name`、`therapeutic_area`       | 说明药品主表 `drugs` 已经成功导入                                                 |
-| 能看到 `sale_date`、`quantity_sold`、`total_amount`、`region` | 说明销售记录表 `sales_records` 已经成功导入，并且关联查询可用                     |
-| `created_at` 是本次初始化时间                                 | 这是 Docker MySQL 首次导入数据时写入的时间，不是药品销售日期                      |
-| 销售日期集中在 `2025` 年                                      | 这是教学 SQL 中准备的模拟销售记录，适合后续练习按日期、区域、药品做统计           |
-
-如果能看到类似这样的带列名 CSV 文本，说明数据库容器、初始化数据、`.env` 连接配置和工具链路都已经可用。
-
----
-
-## 6、为什么这里没有使用 SQLAlchemy
-
-这章使用的是 `mysql.connector`，不是 SQLAlchemy。这里单独说明一下，避免把「深度研搜」和「电商问数」两套项目混在一起。
-
-### 6.1 ORM 映射是什么
-
-ORM，全称是 Object Relational Mapping，可以理解成“把数据库表映射成程序里的对象”。如果用 SQLAlchemy ORM，通常会先写一批 Python 类：
-
-```python
-class Drug(Base):
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// tool(...)
+function list_sql_tables(): string: /* 查询当前数据库中所有可用表 作用：让模型先识别真实可用的表名，方便后续预览表结构和编写自定义 SQL。 :return: 有表：可用的表有：表1,表2,表3... 没有表：没有可用的表 出现异常：查询出现异常：异常信息 */ // 埋点：工具一被调用，前端可以展示当前正在查询数据库表名 monitor.report_tool(tool_name="数据库表名查询工具：list_sql_tables", args={}) // 加载数据库连接信息 config = get_db_config() // MySQL 查询的固定步骤： // 1. 创建连接 // 2. 创建 cursor // 3. 执行 SQL // 4. 获取返回结果 // 5. 释放连接和 cursor 资源 // 这里捕获异常并返回中文提示，避免工具报错直接中断 Agent 执行链路 try { // 使用 with 管理连接和游标，查询结束后自动释放数据库资源 with connect(**config) as conn: with conn.cursor() as cursor: sql = "SHOW TABLES" cursor.execute(sql) // SHOW TABLES 返回形如：[("drugs",), ("inventory",), ("sales_records",)] tables = cursor.fetchall() if (not tables) { return "没有可用的表" // 取每个元组的第一个元素，拼成模型容易阅读的表名列表 table_names = [table[0] for table in tables] return `可用的表有：${', '.join(table_names)}` } catch { return `查询出现异常：${str(e)}` 
+``` 这段代码本质上就是 MySQL 查询的标准流程： ```text 读取连接配置 -> connect 建立连接 -> cursor 创建游标 -> execute 执行 SHOW TABLES -> fetchall 获取结果 -> 格式化返回 ``` `with connect(...)` 和 `with conn.cursor()` 可以在代码块结束后自动释放连接和游标，避免资源泄露。 ### 5.3 get_table_data：预览字段与样例数据 `get_table_data` 用来读取指定表的前 100 行数据。 它有两个目的： 1. 查询单表数据。 2. 让模型看到表结构、字段名和数据格式。 核心代码如下： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. // tool(...) def get_table_data(table_name): string: /* 查询指定表的前 100 行数据 当前工具调用之前，应先调用 list_sql_tables 完成表名校验。 此工具的作用： 1. 完成单表样例数据查询 2. 为多表查询提供表结构信息和数据格式参考 :param table_name: 表名 :return: CSV 格式数据 1. 第一行是列信息，列之间使用英文逗号分隔 2. 第二行开始是表数据，值之间也使用英文逗号分隔 3. 行和行之间使用 \n 分隔 4. 至多查询 100 条表数据 例如： id,name,age\n -> 列头 1,张三,18\n 1,张三,18\n 1,张三,18\n -> 至多查询 100 条 */ // 埋点：工具二被调用，前端可以展示当前正在预览哪张表 monitor.report_tool( tool_name="数据库表数据查询工具：get_table_data", args={"table_name": table_name}, ) // 获取数据库参数 config = get_db_config() // 查询流程同样是：连接 -> cursor -> 执行 SQL -> 获取列信息和数据 -> 自动释放资源 try { with connect(**config) as conn: with conn.cursor() as cursor: // 教程代码直接拼接表名，重点演示 Agent 查询链路；生产环境应改为白名单校验 sql = `SELECT * FROM ${table_name} LIMIT 100` cursor.execute(sql) // cursor.description 保存查询结果的列元信息 // 例如：[("id", ...), ("name", ...), ("age", ...)] // 如果 SQL 没有结果集，description 可能为 null description = cursor.description if (not description) { return `数据表 ${table_name} 暂无数据。` // 只取每个列信息元组的第一个元素，也就是列名 // 例如：["id", "name", "age"] columns = [desc[0] for desc in description] // fetchall 返回表数据，形如：[(1, "张三", 18), (2, "李四", 20)] rows = cursor.fetchall() // 把每一行数据从元组转成 CSV 行文本 // 例如：(1, "张三", 18) -> "1,张三,18" results = [",".join(map(str, row)) for row in rows] // columns 组成 CSV 头部，rows 组成 CSV 数据体 // 最终返回： // id,name,age // 1,张三,18 header_str = ",".join(columns) data_str = "\n".join(results) return `${header_str}\n${data_str}` } catch { return `查询出现异常：${str(e)}` ``` ### 5.4 cursor.description 与 CSV 返回格式 执行查询后，`cursor.description` 里保存的是结果集的列信息。 可以把它理解成： ```text [ ("drug_id", ...), ("generic_name", ...), ("brand_name", ...), ... ] ``` 我们只需要每个元组里的第一个元素，也就是列名： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. columns = [desc[0] for desc in description] ``` 拿到列名后，再把查询结果转成 CSV 格式： ```text drug_id,generic_name,brand_name 1,阿莫西林胶囊,阿莫仙 2,布洛芬缓释胶囊,芬必得 ``` CSV 对模型来说比较容易读，它既能看到字段名，也能看到每一列的数据样子。 ### 5.5 表名安全与只读边界 当前课程代码重点是演示 Agent 查询流程。在最简写法里，`table_name` 会被拼进 SQL： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. sql = `SELECT * FROM ${table_name} LIMIT 100` ``` 这能帮助初学者看清工具链路，但在真实项目里要小心 SQL 注入风险。 如果先做一层基础清洗，可以从下面这种写法开始理解： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. safe_table_name = table_name.replace("`", "").replace(";", "").split()[0] cursor.execute(`SELECT * FROM ${safe_table_name} LIMIT 100`) ``` 这段代码做了三件事： | 处理动作 | 作用 | | --------------------- | --------------------------------- | | 去掉反引号字符 | 避免通过反引号构造异常表名 | | 去掉分号 `;` | 降低一条输入里拼接多条 SQL 的风险 | | `split()[0]` 取第一段 | 避免表名后面继续夹带额外 SQL 片段 | 在生产环境里，建议增加表名白名单校验，例如先调用 `list_sql_tables` 得到真实表名，然后只允许查询白名单里的表。对于自定义 SQL，也建议限制为只读查询，避免执行 `UPDATE`、`DELETE`、`DROP` 之类高风险语句。 ### 5.6 execute_sql_query：执行查询 SQL `execute_sql_query` 是真正执行查询的工具。 它适合处理： - 多表关联； - 条件筛选； - 聚合统计； - 排序和分组。 比如查询药品和销售记录： ```sql SELECT * FROM drugs d JOIN sales_records s ON d.drug_id = s.drug_id; ``` 核心代码如下： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. // tool(...) def execute_sql_query(query): string: /* 执行自定义 SQL 查询 切记：执行之前，需要通过 list_sql_tables 明确表名， 再通过 get_table_data 明确表结构和数据格式。 适合多表关联、筛选、聚合、排序等复杂查询。 :param query: 要执行的自定义 SQL 语句 :return: CSV 格式数据 1. 第一行是列信息，列之间使用英文逗号分隔 2. 第二行开始是表数据，值之间也使用英文逗号分隔 3. 行和行之间使用 \n 分隔 例如： id,name,age\n -> 列头 1,张三,18\n 1,张三,18\n */ // 埋点：记录模型最终生成的 SQL，便于教学时观察是否真的落到了正确表字段上 monitor.report_tool( tool_name="数据库表数据查询工具：execute_sql_query", args={"query": query} ) // 获取数据库参数 config = get_db_config() // 自定义查询和 get_table_data 的结果处理逻辑一致： // 执行 SQL -> 读取 description 得到列名 -> fetchall 得到数据 -> 拼成 CSV 返回 try { with connect(**config) as conn: with conn.cursor() as cursor: // 当前章节依赖提示词约束模型生成只读查询；生产环境建议在工具层限制 SELECT/SHOW cursor.execute(query) // 非查询类 SQL 没有结果集描述，这里统一返回提示，避免工具调用直接抛错给模型 description = cursor.description if (not description) { return `执行自定义 SQL 语句没有查询结果，SQL 为：${query}` // description => [("列1", ...), ("列2", ...)] columns = [desc[0] for desc in description] // rows => [(值1, 值2), (值1, 值2)] rows = cursor.fetchall() // 每行元组统一转为逗号分隔文本，便于模型读取和后续整理 results = [",".join(map(str, row)) for row in rows] // 第一行是列名，后续是查询数据 header_str = ",".join(columns) data_str = "\n".join(results) return `${header_str}\n${data_str}` } catch { return `查询出现异常：${str(e)}` ``` 这段代码和 `get_table_data` 很像。区别是： | 工具 | SQL 来源 | | ------------------- | ------------------------------ | | `get_table_data` | 系统固定生成 `SELECT * ...` | | `execute_sql_query` | 模型根据用户问题生成或整理出来 | 当前项目主要依靠提示词约束它执行查询类 SQL。真实企业项目里，建议在工具层再加一层只读校验，例如只允许 `SELECT` 或 `SHOW` 开头的语句。 ### 5.7 本地调试入口 在项目根目录运行：`uv run python -m app.tools.db_tools` 一次真实输出会先看到工具监控事件： ```text [Monitor:tool_start] 开始执行工具: 数据库表数据查询工具：execute_sql_query ``` 这说明 `execute_sql_query` 里的 `monitor.report_tool(...)` 已经生效：工具真正执行 SQL 之前，先把“数据库查询工具开始执行”这件事汇报给监控模块。后面接着才是 MySQL 返回的查询结果。 下面是把实际输出压缩后的结构，重点看字段和数据形态，不需要把 100 行结果都放进教程里： ```text drug_id,generic_name,brand_name,approval_number,specifications,dosage_form,manufacturer,therapeutic_area,description,created_at,sale_id,drug_id,sale_date,quantity_sold,unit_price,total_amount,customer_name,region,sales_rep 1,阿莫西林胶囊,阿莫仙,国药准字H20051234,0.25g*24粒,胶囊剂,本公司制药,抗生素,...,2026-05-15 13:45:13,1,1,2025-02-15,200,25.00,5000.00,北京朝阳医院,华北区,北京朝阳销售部 1,阿莫西林胶囊,阿莫仙,国药准字H20051234,0.25g*24粒,胶囊剂,本公司制药,抗生素,...,2026-05-15 13:45:13,2,1,2025-08-10,500,24.50,12250.00,天津大药房,华北区,天津南开销售分部 2,布洛芬缓释胶囊,芬必得,国药准字H10900089,0.3g*20粒,胶囊剂,本公司制药,解热镇痛,...,2026-05-15 13:45:13,3,2,2025-01-20,1000,15.00,15000.00,海王星辰连锁,华东区,杭州滨江销售部 ... 其余查询结果省略 ... ``` 这段输出里有几个很值得注意的点： | 现象 | 说明 | | ------------------------------------------------------------- | --------------------------------------------------------------------------------- | | 先出现 `[Monitor:tool_start]` | 说明工具层埋点正常，后续接入前端时可以看到数据库查询进度 | | 输出第一行是 CSV 表头 | 工具返回的不是自然语言，而是模型容易继续读取和整理的结构化文本 | | 表头里出现两次 `drug_id` | 这是因为调试 SQL 同时查询了 `drugs` 和 `sales_records`，两张表都有 `drug_id` 字段 | | 能看到 `generic_name`、`brand_name`、`therapeutic_area` | 说明药品主表 `drugs` 已经成功导入 | | 能看到 `sale_date`、`quantity_sold`、`total_amount`、`region` | 说明销售记录表 `sales_records` 已经成功导入，并且关联查询可用 | | `created_at` 是本次初始化时间 | 这是 Docker MySQL 首次导入数据时写入的时间，不是药品销售日期 | | 销售日期集中在 `2025` 年 | 这是教学 SQL 中准备的模拟销售记录，适合后续练习按日期、区域、药品做统计 | 如果能看到类似这样的带列名 CSV 文本，说明数据库容器、初始化数据、`.env` 连接配置和工具链路都已经可用。 --- ## 6、为什么这里没有使用 SQLAlchemy 这章使用的是 `mysql.connector`，不是 SQLAlchemy。这里单独说明一下，避免把「深度研搜」和「电商问数」两套项目混在一起。 ### 6.1 ORM 映射是什么 ORM，全称是 Object Relational Mapping，可以理解成“把数据库表映射成程序里的对象”。如果用 SQLAlchemy ORM，通常会先写一批 Python 类： ```typescript // [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ. class Drug(Base) {
     __tablename__ = "drugs"
 
-    drug_id = mapped_column(primary_key=True)
+    drug_id = mapped_column(primary_key=true)
     generic_name = mapped_column(String(100))
     brand_name = mapped_column(String(100))
+
 ```
 
 这样 `drugs` 表就对应 Python 里的 `Drug` 类，`generic_name`、`brand_name` 这些字段也变成了类属性。后续查询时，可以通过 `Session` 操作对象或构造 ORM 查询，而不是每次都手写底层连接代码。
 
-在「电商问数」项目里，我们用了 SQLAlchemy。那个项目更像完整后端系统：有元数据库、数据仓库、Repository、Service、FastAPI 依赖注入和请求级 Session，所以需要 SQLAlchemy 管理连接、事务、Session 工厂和一部分 ORM 模型映射。
+在「电商问数」项目里，我们用了 SQLAlchemy。那个项目更像完整后端系统：有元数据库、数据仓库、Repository、Service、Next.js / Hono / Fastify 依赖注入和请求级 Session，所以需要 SQLAlchemy 管理连接、事务、Session 工厂和一部分 ORM 模型映射。
 
 ### 6.2 当前项目为什么只用小工具
 
@@ -824,26 +500,29 @@ execute_sql_query
 
 代码如下：
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 数据库查询子智能体配置模块
 
 将 app/prompt/prompts.yml 中的 db 配置与 MySQL 查询工具组装成
 DeepAgents 可识别的字典式子智能体。主智能体后续会根据 description
 决定是否把企业内部结构化数据查询任务分派给它。
-"""
+ */
 
 from app.agent.prompts import sub_agents_content
 from app.tools.db_tools import execute_sql_query, get_table_data, list_sql_tables
 
-# 数据库助手必须按“列出表 -> 预览表数据 -> 执行 SQL”的顺序获取真实上下文
-# tools 列表中的三个工具共同约束了这个查询链路
+// 数据库助手必须按“列出表 -> 预览表数据 -> 执行 SQL”的顺序获取真实上下文
+// tools 列表中的三个工具共同约束了这个查询链路
 database_query_agent = {
     "name": sub_agents_content["db"]["name"],
     "description": sub_agents_content["db"]["description"],
     "system_prompt": sub_agents_content["db"]["system_prompt"],
     "tools": [list_sql_tables, get_table_data, execute_sql_query],
 }
+
+
 ```
 
 这和上一章的网络搜索助手结构完全一致，只是工具数量从 1 个变成了 3 个。

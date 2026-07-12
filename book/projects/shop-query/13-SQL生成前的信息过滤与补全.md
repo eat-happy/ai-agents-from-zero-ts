@@ -153,8 +153,11 @@ Python 对象 -> YAML 字符串
 
 本项目里选择 YAML：
 
-```python
-yaml.dump(table_infos, allow_unicode=True, sort_keys=False)
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+
+
 ```
 
 这样做有几个好处：
@@ -261,10 +264,11 @@ yaml.dump(table_infos, allow_unicode=True, sort_keys=False)
 
 项目对应文件路径：`app/agent/nodes/filter_table.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 import yaml
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { PromptTemplate } from "@langchain/core/prompts";
 from langgraph.runtime import Runtime
 
 from app.agent.context import DataAgentContext
@@ -274,35 +278,35 @@ from app.core.log import logger
 from app.prompt.prompt_loader import load_prompt
 
 
-async def filter_table(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """根据用户问题裁剪候选表结构上下文"""
+async function filter_table(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
+    /* 根据用户问题裁剪候选表结构上下文 */
 
     writer = runtime.stream_writer
     writer("过滤表信息")
 
     query = state["query"]
-    table_infos: list[TableInfoState] = state["table_infos"]
+    table_infos: any[][TableInfoState] = state["table_infos"]
 
-    # table_infos 是嵌套结构，转成 YAML 后更适合放进提示词，也保留中文字段说明
+    // table_infos 是嵌套结构，转成 YAML 后更适合放进提示词，也保留中文字段说明
     prompt = PromptTemplate(
         template=load_prompt("filter_table_info"),
         input_variables=["query", "table_infos"],
     )
-    # filter_table_info prompt 要求模型只输出 JSON 对象：表名 -> 字段名列表
+    // filter_table_info prompt 要求模型只输出 JSON 对象：表名 -> 字段名列表
     output_parser = JsonOutputParser()
-    # LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
+    // LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
     chain = prompt | llm | output_parser
 
     result = await chain.ainvoke(
         {
             "query": query,
-            "table_infos": yaml.dump(table_infos, allow_unicode=True, sort_keys=False),
+            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
         }
     )
-    # 模型只负责选择，程序根据选择结果从原始 TableInfoState 中裁剪，避免模型重写复杂结构出错
-    filtered_table_infos: list[TableInfoState] = []
-    for table_info in table_infos:
-        if table_info["name"] in result:
+    // 模型只负责选择，程序根据选择结果从原始 TableInfoState 中裁剪，避免模型重写复杂结构出错
+    filtered_table_infos: any[][TableInfoState] = []
+    for (const table_info of table_infos) {
+        if (table_info["name"] in result) {
             table_info["columns"] = [
                 column_info
                 for column_info in table_info["columns"]
@@ -311,58 +315,78 @@ async def filter_table(state: DataAgentState, runtime: Runtime[DataAgentContext]
             filtered_table_infos.append(table_info)
 
     logger.info(
-        f"过滤后的表信息：{[filtered_table_info['name'] for filtered_table_info in filtered_table_infos]}"
+        `过滤后的表信息：${[filtered_table_info['name'] for filtered_table_info in filtered_table_infos]}`
     )
     return {"table_infos": filtered_table_infos}
+
+
 ```
 
 这段代码可以拆成四步。
 
 第一步，读取用户问题和上一章合并出来的表结构：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 query = state["query"]
-table_infos: list[TableInfoState] = state["table_infos"]
+table_infos: any[][TableInfoState] = state["table_infos"]
+
+
 ```
 
 第二步，构建一条最小 LCEL 链：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 chain = prompt | llm | output_parser
+
+
 ```
 
 这里使用 `JsonOutputParser`，是因为提示词要求模型只输出 JSON 对象。解析后，`result` 就是 Python 字典。
 
 第三步，把 `table_infos` 序列化成 YAML 后传给模型：
 
-```python
-yaml.dump(table_infos, allow_unicode=True, sort_keys=False)
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+
+
 ```
 
 第四步，根据模型返回的字典裁剪原始表结构。
 
 这里没有在遍历 `table_infos` 时直接 `remove` 元素。因为遍历列表时删除元素，容易造成索引错位，导致漏处理。更稳的方式是新建一个列表：
 
-```python
-filtered_table_infos: list[TableInfoState] = []
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+filtered_table_infos: any[][TableInfoState] = []
+
+
 ```
 
 需要保留的表，再追加进去。
 
 字段过滤则使用列表推导式：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 table_info["columns"] = [
     column_info
     for column_info in table_info["columns"]
     if column_info["name"] in result[table_info["name"]]
 ]
+
+
 ```
 
 最后返回：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 return {"table_infos": filtered_table_infos}
+
+
 ```
 
 返回同名 key 会覆盖 `state["table_infos"]`，后续节点读取到的就是过滤后的表结构。
@@ -435,10 +459,11 @@ AOV
 
 项目对应文件路径：`app/agent/nodes/filter_metric.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 import yaml
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { PromptTemplate } from "@langchain/core/prompts";
 from langgraph.runtime import Runtime
 
 from app.agent.context import DataAgentContext
@@ -448,34 +473,34 @@ from app.core.log import logger
 from app.prompt.prompt_loader import load_prompt
 
 
-async def filter_metric(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """根据用户问题裁剪候选指标上下文"""
+async function filter_metric(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
+    /* 根据用户问题裁剪候选指标上下文 */
 
     writer = runtime.stream_writer
     writer("过滤指标信息")
 
     query = state["query"]
-    metric_infos: list[MetricInfoState] = state["metric_infos"]
+    metric_infos: any[][MetricInfoState] = state["metric_infos"]
 
-    # metric_infos 转成 YAML 后作为候选项交给模型，模型只需要返回被选中的指标名称
+    // metric_infos 转成 YAML 后作为候选项交给模型，模型只需要返回被选中的指标名称
     prompt = PromptTemplate(
         template=load_prompt("filter_metric_info"),
         input_variables=["query", "metric_infos"],
     )
-    # filter_metric_info prompt 要求模型只输出 JSON 数组
+    // filter_metric_info prompt 要求模型只输出 JSON 数组
     output_parser = JsonOutputParser()
-    # LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
+    // LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
     chain = prompt | llm | output_parser
 
     result = await chain.ainvoke(
         {
             "query": query,
             "metric_infos": yaml.dump(
-                metric_infos, allow_unicode=True, sort_keys=False
+                metric_infos, allow_unicode=true, sort_keys=false
             ),
         }
     )
-    # 用模型返回的指标名称过滤原始结构，保留描述 依赖字段 别名等完整上下文
+    // 用模型返回的指标名称过滤原始结构，保留描述 依赖字段 别名等完整上下文
     filtered_metric_infos = [
         metric_info
         for metric_info in metric_infos
@@ -483,33 +508,44 @@ async def filter_metric(state: DataAgentState, runtime: Runtime[DataAgentContext
     ]
 
     logger.info(
-        f"过滤后的指标信息：{[filtered_metric_info['name'] for filtered_metric_info in filtered_metric_infos]}"
+        `过滤后的指标信息：${[filtered_metric_info['name'] for filtered_metric_info in filtered_metric_infos]}`
     )
     return {"metric_infos": filtered_metric_infos}
+
+
 ```
 
 这段代码比 `filter_table` 更短，因为指标没有“表 -> 字段”这种嵌套层级。
 
 模型返回的是指标名列表，例如：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 ["GMV"]
+
+
 ```
 
 程序只需要保留名称在 `result` 中出现的指标：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 filtered_metric_infos = [
     metric_info
     for metric_info in metric_infos
     if metric_info["name"] in result
 ]
+
+
 ```
 
 最后同样覆盖原来的状态：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 return {"metric_infos": filtered_metric_infos}
+
+
 ```
 
 ---
@@ -522,12 +558,15 @@ return {"metric_infos": filtered_metric_infos}
 
 项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 graph_builder.add_edge("merge_retrieved_info", "filter_table")
 graph_builder.add_edge("merge_retrieved_info", "filter_metric")
 
 graph_builder.add_edge("filter_table", "add_extra_context")
 graph_builder.add_edge("filter_metric", "add_extra_context")
+
+
 ```
 
 意思是：
@@ -579,23 +618,26 @@ db_info    # 数据库方言、数据库版本
 
 项目对应文件路径：`shopkeeper-agent/app/agent/state.ts`
 
-```python
-class DateInfoState(TypedDict):
-    date: str
-    weekday: str
-    quarter: str
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+type DateInfoState = {
+    date: string
+    weekday: string
+    quarter: string
 
 
-class DBInfoState(TypedDict):
-    dialect: str
-    version: str
+type DBInfoState = {
+    dialect: string
+    version: string
 
 
-class DataAgentState(TypedDict):
-    # 前面章节已有字段省略...
+type DataAgentState = {
+    // 前面章节已有字段省略...
 
-    date_info: DateInfoState  # 当前日期 星期和季度信息
-    db_info: DBInfoState  # 数据库方言和版本信息
+    date_info: DateInfoState  // 当前日期 星期和季度信息
+    db_info: DBInfoState  // 数据库方言和版本信息
+}
+
 ```
 
 `DateInfoState` 和 `DBInfoState` 定义了两份上下文的结构。`DataAgentState` 里加入 `date_info`、`db_info` 后，后续的 `generate_sql` 节点就可以稳定读取它们。
@@ -604,14 +646,17 @@ class DataAgentState(TypedDict):
 
 项目对应文件路径：`shopkeeper-agent/app/agent/context.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
 
 
-class DataAgentContext(TypedDict):
-    # 前面章节已有字段省略...
+type DataAgentContext = {
+    // 前面章节已有字段省略...
 
     dw_mysql_repository: DWMySQLRepository
+}
+
 ```
 
 这里使用的是 `DWMySQLRepository`，不是 `MetaMySQLRepository`。
@@ -626,7 +671,8 @@ class DataAgentContext(TypedDict):
 
 项目对应文件路径：`shopkeeper-agent/app/agent/nodes/add_extra_context.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from datetime import date
 
 from langgraph.runtime import Runtime
@@ -636,35 +682,40 @@ from app.agent.state import DataAgentState, DateInfoState, DBInfoState
 from app.core.log import logger
 
 
-async def add_extra_context(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """补齐 SQL 生成所需的日期和数据库环境信息"""
+async function add_extra_context(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
+    /* 补齐 SQL 生成所需的日期和数据库环境信息 */
 
     dw_mysql_repository = runtime.context["dw_mysql_repository"]
 
-    # 当前日期信息会帮助模型处理“今天 本月 本季度 最近 N 天”等相对时间表达
+    // 当前日期信息会帮助模型处理“今天 本月 本季度 最近 N 天”等相对时间表达
     today = date.today()
     date_str = today.strftime("%Y-%m-%d")
     weekday = today.strftime("%A")
-    quarter = f"Q{(today.month - 1) // 3 + 1}"
+    quarter = `Q${(today.month - 1) // 3 + 1}`
     date_info = DateInfoState(date=date_str, weekday=weekday, quarter=quarter)
 
-    # 数据库方言和版本会影响函数名 日期运算 limit 语法等 SQL 细节
+    // 数据库方言和版本会影响函数名 日期运算 limit 语法等 SQL 细节
     db = await dw_mysql_repository.get_db_info()
     db_info = DBInfoState(**db)
-    logger.info(f"数据库信息：{db_info}")
-    logger.info(f"日期信息：{date_info}")
+    console.log(`数据库信息：${db_info}`)
+    console.log(`日期信息：${date_info}`)
     return {"date_info": date_info, "db_info": db_info}
+
+
 ```
 
 这段代码做两件事。
 
 第一，生成当前日期信息：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 today = date.today()
 date_str = today.strftime("%Y-%m-%d")
 weekday = today.strftime("%A")
-quarter = f"Q{(today.month - 1) // 3 + 1}"
+quarter = `Q${(today.month - 1) // 3 + 1}`
+
+
 ```
 
 `date_str` 是日期字符串，例如：
@@ -687,29 +738,41 @@ Q2
 
 季度计算这里要注意一个小细节：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 (today.month - 1) // 3 + 1
+
+
 ```
 
 不能直接写成：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 today.month // 3 + 1
+
+
 ```
 
 因为 3 月如果直接 `3 // 3 + 1`，会算成第二季度。先减 1，再整除 3，才能保证 1、2、3 月都属于 `Q1`。
 
 第二，查询数据库信息：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 db = await dw_mysql_repository.get_db_info()
 db_info = DBInfoState(**db)
+
+
 ```
 
 `get_db_info()` 返回的是一个字典：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 {"dialect": "mysql", "version": "8.0.x"}
+
+
 ```
 
 字段名刚好和 `DBInfoState` 对应，所以可以用 `**db` 解包创建。
@@ -720,27 +783,30 @@ db_info = DBInfoState(**db)
 
 项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import any /* AsyncSession */
 
 
-class DWMySQLRepository:
-    """负责查询数仓真实表结构和字段样例值"""
+class DWMySQLRepository {
+    /* 负责查询数仓真实表结构和字段样例值 */
 
-    def __init__(self, session: AsyncSession):
-        self.session = session
+    constructor(self, session: any /* AsyncSession */) {
+        this.session = session
 
-    async def get_db_info(self):
-        """读取当前数仓数据库的方言和版本，供 SQL 生成提示词使用"""
+    async function get_db_info(self) {
+        /* 读取当前数仓数据库的方言和版本，供 SQL 生成提示词使用 */
 
         sql = "select version()"
-        result = await self.session.execute(text(sql))
+        result = await this.session.execute(text(sql))
         version = result.scalar()
 
-        # dialect 来自 SQLAlchemy 当前绑定的数据库方言，例如 mysql
-        dialect = self.session.bind.dialect.name
+        // dialect 来自 SQLAlchemy 当前绑定的数据库方言，例如 mysql
+        dialect = this.session.bind.dialect.name
         return {"dialect": dialect, "version": version}
+
+
 ```
 
 这里获取了两个信息。
@@ -753,16 +819,22 @@ select version()
 
 这条 SQL 在 MySQL 中会返回当前数据库版本。因为结果只有一行一列，所以代码里直接使用：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 version = result.scalar()
+
+
 ```
 
 `scalar()` 适合取单个值，比 `fetchall()[0][0]` 更直观。
 
 第二，数据库方言：
 
-```python
-dialect = self.session.bind.dialect.name
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+dialect = this.session.bind.dialect.name
+
+
 ```
 
 当前项目使用 SQLAlchemy 管理数据库连接，`dialect.name` 可以拿到当前连接对应的数据库类型，比如：
@@ -780,15 +852,19 @@ postgresql
 
 因为 `add_extra_context` 会读取：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 runtime.context["dw_mysql_repository"]
+
+
 ```
 
 所以本地测试工作流时，需要初始化 DW 数据库连接，并把 `DWMySQLRepository` 放进 `context`。
 
 项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 meta_mysql_client_manager.init()
 dw_mysql_client_manager.init()
 
@@ -807,6 +883,8 @@ async with (
         meta_mysql_repository=meta_mysql_repository,
         dw_mysql_repository=dw_mysql_repository,
     )
+
+
 ```
 
 这里同时创建了 `meta_mysql_repository` 和 `dw_mysql_repository`：
@@ -826,8 +904,11 @@ uv run python -m app.agent.graph
 
 测试问题仍然可以使用：
 
-```python
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
 state = DataAgentState(query="统计华北地区的销售总额")
+
+
 ```
 
 流式输出里应该能看到类似下面这些节点进度。由于三路召回、表过滤和指标过滤是并行分支，实际打印顺序可能会略有不同。

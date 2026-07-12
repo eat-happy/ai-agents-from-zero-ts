@@ -148,13 +148,13 @@
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 掌柜智库                                | LangGraph RAG 工作流、MinerU/OCR、向量+稀疏+Neo4j 多路召回、HyDE/BGE-Rerank、RAGAS 评估                                                                                                |
 | 电商小二                                | 意图解析、多源知识库、流式回复、转人工机制、对话复盘、多渠道与监控                                                                                                                     |
-| [电商问数](projects/shop-query/0-前言.md) | 围绕自然语言问数，完整串起 MySQL 数仓、元数据知识库、Qdrant 向量检索、Elasticsearch 字段值检索、LangGraph 工作流、SQL 生成校验执行、FastAPI SSE 和前后端联调                           |
-| [深度研搜](projects/deep-research/0-前言.md) | 基于 [DeepAgents](projects/deep-research/1-DeepAgents基础与核心概念.md) 搭建多智能体研究系统，串起网络搜索、MySQL 查询、RAGFlow 知识库、文件读取生成、FastAPI 接口和 WebSocket 实时进度回传 |
+| [电商问数](projects/shop-query/0-前言.md) | 围绕自然语言问数，完整串起 MySQL 数仓、元数据知识库、Qdrant 向量检索、Elasticsearch 字段值检索、LangGraph 工作流、SQL 生成校验执行、Next.js / Hono / Fastify SSE 和前后端联调                           |
+| [深度研搜](projects/deep-research/0-前言.md) | 基于 [DeepAgents](projects/deep-research/1-DeepAgents基础与核心概念.md) 搭建多智能体研究系统，串起网络搜索、MySQL 查询、RAGFlow 知识库、文件读取生成、Next.js / Hono / Fastify 接口和 WebSocket 实时进度回传 |
 | 市场罗盘                                | 场景化任务拆解、从 0 到 1 设计与开发、阶段目标与进度管控、代码评审与成果展示                                                                                                           |
 
 > **已完成实战项目推荐：**
 >
-> - [电商问数](projects/shop-query/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）：不是简单的 SQL 生成 Demo，而是把 `MySQL`、`LangGraph`、`Qdrant`、`Elasticsearch`、`FastAPI` 等知识点放进同一条可运行的智能问数链路里。
+> - [电商问数](projects/shop-query/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）：不是简单的 SQL 生成 Demo，而是把 `MySQL`、`LangGraph`、`Qdrant`、`Elasticsearch`、`Next.js / Hono / Fastify` 等知识点放进同一条可运行的智能问数链路里。
 > - [深度研搜](projects/deep-research/0-前言.md)（[源码仓库](https://github.com/didilili/deepsearch-agents)）：不是普通聊天框，而是围绕开放研究任务，把主智能体调度、子智能体分工、多来源资料检索、文件生成交付和前后端实时联动做成一条完整闭环。
 
 ### 05 大模型微调实践

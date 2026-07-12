@@ -182,40 +182,41 @@ npm install cozepy
 
 ### 5.3 示例源码
 
-````python
-"""
+````typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 This example describes how to use the workflow interface to stream chat.
-"""
+ */
 
-import os
-# Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
+
+// Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
 from cozepy import COZE_CN_BASE_URL
 
-# Get an access_token through personal access token or oauth.
+// Get an access_token through personal access token || oauth.
 coze_api_token = '{API_KEY}'
-# The default access is api.coze.com, but if you need to access api.coze.cn,
-# please use base_url to configure the api endpoint to access
+// The default access is api.coze.com, but if you need to access api.coze.cn,
+// please use base_url to configure the api endpoint to access
 coze_api_base = COZE_CN_BASE_URL
 
-from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  # noqa
+from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  // noqa
 
-# Init the Coze client through the access_token.
-coze = Coze(auth=TokenAuth(token=coze_api_token), base_url=coze_api_base)
+// Init the Coze client through the access_token.
+coze = Coze(auth=TokenAuth(token=coze_api_token), configuration:{ baseURL:coze_api_base)
 
-# Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
+// Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
 workflow_id = '{WORKFLOW_ID}'
 
 
-# The stream interface will return an iterator of WorkflowEvent. Developers should iterate
-# through this iterator to obtain WorkflowEvent and handle them separately according to
-# the type of WorkflowEvent.
-def handle_workflow_iterator(stream: Stream[WorkflowEvent]):
-    for event in stream:
-        if event.event == WorkflowEventType.MESSAGE:
-            print("got message", event.message)
-        elif event.event == WorkflowEventType.ERROR:
-            print("got error", event.error)
-        elif event.event == WorkflowEventType.INTERRUPT:
+// The stream interface will return an iterator of WorkflowEvent. Developers should iterate
+// through this iterator to obtain WorkflowEvent && handle them separately according to
+// the type of WorkflowEvent.
+function handle_workflow_iterator(stream: Stream[WorkflowEvent]) {
+    for (const event of stream) {
+        if (event.event == WorkflowEventType.MESSAGE) {
+            console.log("got message", event.message)
+        } else if (event.event == WorkflowEventType.ERROR) {
+            console.log("got error", event.error)
+        } else if (event.event == WorkflowEventType.INTERRUPT) {
             handle_workflow_iterator(
                 coze.workflows.runs.resume(
                     workflow_id=workflow_id,
@@ -244,7 +245,9 @@ handle_workflow_iterator(
 
 **处理方式**：在从 Coze 平台拷贝的代码基础上，为 `stream()` 调用增加 **parameters** 参数：
 
-```python
+
+
+```typescript
 handle_workflow_iterator(
     coze.workflows.runs.stream(
         workflow_id=workflow_id,
@@ -257,40 +260,41 @@ handle_workflow_iterator(
 
 ### 5.4 最终代码
 
-```python
-"""
+```typescript
+// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+/* 
 This example describes how to use the workflow interface to stream chat.
-"""
+ */
 
-import os
-# Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
+
+// Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
 from cozepy import COZE_CN_BASE_URL
 
-# Get an access_token through personal access token or oauth.
+// Get an access_token through personal access token || oauth.
 coze_api_token = 'cztei_hXYOqnustyYyhrSuGFl4tgcxJ9E2KjYLPnHvcEcoWRwWvujWU0sPqka8xyQ1wsCyi'
-# The default access is api.coze.com, but if you need to access api.coze.cn,
-# please use base_url to configure the api endpoint to access
+// The default access is api.coze.com, but if you need to access api.coze.cn,
+// please use base_url to configure the api endpoint to access
 coze_api_base = COZE_CN_BASE_URL
 
-from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  # noqa
+from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  // noqa
 
-# Init the Coze client through the access_token.
-coze = Coze(auth=TokenAuth(token=coze_api_token), base_url=coze_api_base)
+// Init the Coze client through the access_token.
+coze = Coze(auth=TokenAuth(token=coze_api_token), configuration:{ baseURL:coze_api_base)
 
-# Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
+// Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
 workflow_id = '7537267958432858127'
 
 
-# The stream interface will return an iterator of WorkflowEvent. Developers should iterate
-# through this iterator to obtain WorkflowEvent and handle them separately according to
-# the type of WorkflowEvent.
-def handle_workflow_iterator(stream: Stream[WorkflowEvent]):
-    for event in stream:
-        if event.event == WorkflowEventType.MESSAGE:
-            print("got message", event.message)
-        elif event.event == WorkflowEventType.ERROR:
-            print("got error", event.error)
-        elif event.event == WorkflowEventType.INTERRUPT:
+// The stream interface will return an iterator of WorkflowEvent. Developers should iterate
+// through this iterator to obtain WorkflowEvent && handle them separately according to
+// the type of WorkflowEvent.
+function handle_workflow_iterator(stream: Stream[WorkflowEvent]) {
+    for (const event of stream) {
+        if (event.event == WorkflowEventType.MESSAGE) {
+            console.log("got message", event.message)
+        } else if (event.event == WorkflowEventType.ERROR) {
+            console.log("got error", event.error)
+        } else if (event.event == WorkflowEventType.INTERRUPT) {
             handle_workflow_iterator(
                 coze.workflows.runs.resume(
                     workflow_id=workflow_id,
@@ -305,10 +309,12 @@ handle_workflow_iterator(
     coze.workflows.runs.stream(
         workflow_id=workflow_id,
         parameters={
-            "link": "https://www.bilibili.com/video/BV1S2421P788/?share_source=copy_web&vd_source=8d04b2c1b7fd20888b03c20e99f26dc0"   # 替换成实际需要的链接
+            "link": "https://www.bilibili.com/video/BV1S2421P788/?share_source=copy_web&vd_source=8d04b2c1b7fd20888b03c20e99f26dc0"   // 替换成实际需要的链接
         }
     )
 )
+
+
 ```
 
 ### 5.5 运行结果
@@ -325,7 +331,7 @@ handle_workflow_iterator(
 
 1. 先在平台确认工作流逻辑跑通
 2. 再用 API playground 验证请求结构
-3. 最后再接入 Python 代码
+3. 最后再接入 TypeScript 代码
 
 这样最容易把问题分层定位，而不是平台和代码一起调，最后什么都分不清。
 
@@ -335,13 +341,13 @@ handle_workflow_iterator(
 
 1. 调用 Coze 工作流前，你会如何确认“平台侧已经准备好”？
 
-   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，Python 代码再完整也只会放大问题。
+   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，TypeScript 代码再完整也只会放大问题。
 
 2. Coze 和 Dify 的接口字段不同，但调用主线为什么很像？
 
    **参考思路：** 两者本质都是把平台工作流暴露成 API：发布、鉴权、传业务参数、接收运行结果、回日志核对。字段名会变，排查顺序和工程关注点差不多。
 
-3. 如果 Python 代码没有拿到预期输出，你会如何分层排查？
+3. 如果 TypeScript 代码没有拿到预期输出，你会如何分层排查？
 
    **参考思路：** 先在平台调试工作流，再用 API playground 或最小请求确认接口，最后看 Python 解析逻辑。这样能分清是平台配置、接口参数、鉴权，还是代码处理的问题。
 
