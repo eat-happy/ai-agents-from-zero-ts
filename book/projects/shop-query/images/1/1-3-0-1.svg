@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">业务数据库、数据仓库、元数据知识库和问数智能体的关系</title>
+  <desc id="desc">展示电商问数项目中业务数据如何沉淀到教学数仓，再形成元数据知识库，最后支撑自然语言问数。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 14; }
+      .accent1 { fill: #e0f2fe; stroke: #0284c7; }
+      .accent2 { fill: #ecfdf5; stroke: #059669; }
+      .accent3 { fill: #fff7ed; stroke: #ea580c; }
+      .accent4 { fill: #f5f3ff; stroke: #7c3aed; }
+      .title { font: 700 24px sans-serif; fill: #0f172a; }
+      .label { font: 700 18px sans-serif; fill: #0f172a; }
+      .text { font: 15px sans-serif; fill: #475569; }
+      .small { font: 13px sans-serif; fill: #64748b; }
+      .line { stroke: #334155; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 7 7; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1180" height="520"/>
+  <text class="title" x="48" y="54">从业务数据到自然语言问数：先整理数据，再让智能体回答</text>
+
+  <rect class="panel accent1" x="60" y="120" width="220" height="210"/>
+  <text class="label" x="94" y="165">业务数据库</text>
+  <text class="text" x="94" y="205">订单、商品、会员</text>
+  <text class="text" x="94" y="232">围绕交易写入和更新</text>
+  <text class="small" x="94" y="278">适合业务系统运行</text>
+
+  <rect class="panel accent2" x="350" y="120" width="220" height="210"/>
+  <text class="label" x="384" y="165">教学数据仓库</text>
+  <text class="text" x="384" y="205">事实表 + 维度表</text>
+  <text class="text" x="384" y="232">面向统计和分析查询</text>
+  <text class="small" x="384" y="278">适合 SQL 聚合分析</text>
+
+  <rect class="panel accent3" x="640" y="120" width="220" height="210"/>
+  <text class="label" x="674" y="165">元数据知识库</text>
+  <text class="text" x="674" y="205">表、字段、指标、取值</text>
+  <text class="text" x="674" y="232">MySQL + Qdrant + ES</text>
+  <text class="small" x="674" y="278">让系统知道能查什么</text>
+
+  <rect class="panel accent4" x="930" y="120" width="220" height="210"/>
+  <text class="label" x="964" y="165">问数智能体</text>
+  <text class="text" x="964" y="205">检索上下文</text>
+  <text class="text" x="964" y="232">生成、校验、执行 SQL</text>
+  <text class="small" x="964" y="278">把自然语言变成结果</text>
+
+  <path class="line" d="M280 225 H342"/>
+  <path class="line" d="M570 225 H632"/>
+  <path class="line" d="M860 225 H922"/>
+
+  <rect class="panel" x="340" y="388" width="500" height="72"/>
+  <text class="label" x="382" y="418">关键理解</text>
+  <text class="text" x="382" y="446">大模型不是直接猜 SQL，而是基于整理好的元数据知识库生成更可靠的 SQL。</text>
+  <path class="dash" d="M1040 330 C1040 390 880 424 842 424"/>
+</svg>

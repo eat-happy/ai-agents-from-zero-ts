@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="500" viewBox="0 0 1180 500" role="img" aria-labelledby="title desc">
+  <title id="title">SSE 和 WebSocket 在问数接口中的选择</title>
+  <desc id="desc">对比 SSE 和 WebSocket 的通信方向、复杂度和在当前项目中的适用场景。</desc>
+  <style>
+    .bg { fill: #f8fafc; }
+    .box { fill: #fff; stroke: #cbd5e1; stroke-width: 2; rx: 16; }
+    .sse { fill: #ecfdf5; stroke: #059669; }
+    .ws { fill: #e0f2fe; stroke: #0284c7; }
+    .title { font: 700 24px sans-serif; fill: #0f172a; }
+    .label { font: 700 20px sans-serif; fill: #0f172a; }
+    .text { font: 15px sans-serif; fill: #475569; }
+    .ok { font: 700 16px sans-serif; fill: #047857; }
+    .muted { font: 14px sans-serif; fill: #64748b; }
+    .line { stroke: #334155; stroke-width: 2.4; marker-end: url(#arrow); }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1180" height="500"/>
+  <text class="title" x="48" y="54">为什么查询接口先选 SSE：问题一次提交，结果持续返回</text>
+
+  <rect class="box sse" x="90" y="105" width="460" height="285"/>
+  <text class="label" x="130" y="150">SSE</text>
+  <text class="text" x="130" y="192">通信方向：服务端持续推送给前端</text>
+  <text class="text" x="130" y="226">连接形态：一次 HTTP 请求保持流式返回</text>
+  <text class="text" x="130" y="260">适合场景：进度、结果、异常逐步返回</text>
+  <text class="ok" x="130" y="310">当前项目：优先选择</text>
+  <text class="muted" x="130" y="344">自然语言问题提交后，前端主要等待后端持续吐出事件。</text>
+
+  <rect class="box ws" x="630" y="105" width="460" height="285"/>
+  <text class="label" x="670" y="150">WebSocket</text>
+  <text class="text" x="670" y="192">通信方向：前后端双向持续通信</text>
+  <text class="text" x="670" y="226">连接形态：独立长连接协议</text>
+  <text class="text" x="670" y="260">适合场景：聊天、多人协作、实时控制</text>
+  <text class="muted" x="670" y="310">当前项目暂时不需要复杂双向交互。</text>
+
+  <line class="line" x1="200" y1="430" x2="970" y2="430"/>
+  <text class="muted" x="365" y="462">接口设计原则：先用最简单的协议满足真实需求，再扩展更复杂的交互能力。</text>
+</svg>

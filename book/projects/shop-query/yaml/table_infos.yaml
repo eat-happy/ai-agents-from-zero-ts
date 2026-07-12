@@ -1,0 +1,133 @@
+- name: dim_region
+  role: dim
+  description: 地区维度表，用于描述订单发生的地理区域信息。
+  columns:
+    - name: region_name
+      type: varchar(50)
+      role: dimension
+      examples: ["华南", "华东", "西南", "华北", "华中"]
+      description: 订单所属的大区名称，如华东、华南等。
+      alias: ["地区", "区域", "大区"]
+
+    - name: province
+      type: varchar(50)
+      role: dimension
+      examples: ["广东省", "浙江省", "四川省", "北京市", "上海市", "湖北省"]
+      description: 订单所属的省份名称。
+      alias: ["省份", "省", "所在省份"]
+
+    - name: country
+      type: varchar(50)
+      role: dimension
+      examples: ["中国"]
+      description: 地区所属国家名称。
+      alias: ["国家", "国家名称"]
+
+    - name: region_id
+      type: varchar(20)
+      role: primary_key
+      examples: ["R001", "R002", "R003", "R004", "R005", "R006"]
+      description: 地区唯一标识。
+      alias: ["地区ID", "区域ID"]
+
+- name: fact_order
+  role: fact
+  description: 订单事实表，记录订单数量和金额等核心指标。
+  columns:
+    - name: order_quantity
+      type: int
+      role: measure
+      examples: [1, 5, 12, 8, 2, 10, 3, 6, 25, 4]
+      description: 订单中商品的购买数量。
+      alias: ["销量", "购买数量", "件数"]
+
+    - name: order_amount
+      type: float
+      role: measure
+      examples:
+        [8999.0, 6999.0, 125.0, 899.0, 60.0, 1399.0, 40.0, 299.0, 200.0, 9499.0]
+      description: 订单金额。
+      alias: ["销售额", "订单金额", "收入"]
+
+    - name: customer_id
+      type: varchar(20)
+      role: foreign_key
+      examples:
+        [
+          "C001",
+          "C005",
+          "C003",
+          "C008",
+          "C012",
+          "C015",
+          "C002",
+          "C007",
+          "C010",
+          "C019",
+        ]
+      description: 关联客户维度的外键。
+      alias: ["客户ID", "用户ID"]
+
+    - name: date_id
+      type: int
+      role: foreign_key
+      examples:
+        [
+          20250101,
+          20250102,
+          20250103,
+          20250104,
+          20250105,
+          20250106,
+          20250107,
+          20250108,
+          20250109,
+          20250110,
+        ]
+      description: 关联时间维度的外键。
+      alias: ["日期", "下单日期"]
+
+    - name: order_id
+      type: varchar(30)
+      role: primary_key
+      examples:
+        [
+          "ORD20250101001",
+          "ORD20250101002",
+          "ORD20250102001",
+          "ORD20250102002",
+          "ORD20250103001",
+          "ORD20250103002",
+          "ORD20250104001",
+          "ORD20250105001",
+          "ORD20250105002",
+          "ORD20250106001",
+        ]
+      description: 订单唯一标识。
+      alias: ["订单ID"]
+
+    - name: product_id
+      type: varchar(20)
+      role: foreign_key
+      examples:
+        [
+          "P001",
+          "P003",
+          "P010",
+          "P006",
+          "P011",
+          "P014",
+          "P012",
+          "P008",
+          "P002",
+          "P013",
+        ]
+      description: 关联商品维度的外键。
+      alias: ["商品ID", "产品ID"]
+
+    - name: region_id
+      type: varchar(20)
+      role: foreign_key
+      examples: ["R001", "R005", "R002", "R004", "R003", "R006"]
+      description: 关联地区维度的外键。
+      alias: ["地区ID", "区域ID"]

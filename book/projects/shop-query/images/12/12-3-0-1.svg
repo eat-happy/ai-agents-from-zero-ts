@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="560" viewBox="0 0 1180 560" role="img" aria-labelledby="title desc">
+  <title id="title">召回信息合并为 SQL 上下文的结构化过程</title>
+  <desc id="desc">展示字段、指标和字段取值如何经过去重、补齐、分组和主外键补齐后成为 table_infos 与 metric_infos。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #fff; stroke: #cbd5e1; stroke-width: 2; rx: 12; }
+      .in { fill: #e0f2fe; stroke: #0284c7; }
+      .step { fill: #f5f3ff; stroke: #7c3aed; }
+      .out { fill: #ecfdf5; stroke: #059669; }
+      .title { font: 700 24px sans-serif; fill: #0f172a; }
+      .label { font: 700 17px sans-serif; fill: #0f172a; }
+      .text { font: 13px sans-serif; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="560"/>
+  <text class="title" x="48" y="54">召回只是候选，合并才会变成适合生成 SQL 的上下文</text>
+
+  <rect class="box in" x="60" y="110" width="200" height="80"/>
+  <text class="label" x="95" y="143">字段召回结果</text>
+  <text class="text" x="95" y="168">column_infos</text>
+
+  <rect class="box in" x="60" y="240" width="200" height="80"/>
+  <text class="label" x="95" y="273">指标召回结果</text>
+  <text class="text" x="95" y="298">metric_infos</text>
+
+  <rect class="box in" x="60" y="370" width="200" height="80"/>
+  <text class="label" x="95" y="403">字段取值召回</text>
+  <text class="text" x="95" y="428">value_infos</text>
+
+  <rect class="box step" x="345" y="95" width="210" height="70"/>
+  <text class="label" x="382" y="126">按字段 id 去重</text>
+  <text class="text" x="382" y="150">避免重复候选</text>
+
+  <rect class="box step" x="345" y="195" width="210" height="70"/>
+  <text class="label" x="382" y="226">补齐指标依赖字段</text>
+  <text class="text" x="382" y="250">指标需要哪些字段</text>
+
+  <rect class="box step" x="345" y="295" width="210" height="70"/>
+  <text class="label" x="382" y="326">字段值放入 examples</text>
+  <text class="text" x="382" y="350">让条件值更准确</text>
+
+  <rect class="box step" x="345" y="395" width="210" height="70"/>
+  <text class="label" x="382" y="426">按表分组并补主外键</text>
+  <text class="text" x="382" y="450">形成可 join 结构</text>
+
+  <rect class="box out" x="680" y="155" width="210" height="95"/>
+  <text class="label" x="722" y="190">table_infos</text>
+  <text class="text" x="722" y="216">表、字段、examples</text>
+
+  <rect class="box out" x="680" y="310" width="210" height="95"/>
+  <text class="label" x="722" y="345">metric_infos</text>
+  <text class="text" x="722" y="371">指标定义与依赖字段</text>
+
+  <rect class="box" x="970" y="230" width="160" height="110"/>
+  <text class="label" x="1004" y="270">SQL 上下文</text>
+  <text class="text" x="1004" y="296">更少噪声</text>
+  <text class="text" x="1004" y="320">更多结构</text>
+
+  <path class="line" d="M260 150 H338"/>
+  <path class="line" d="M260 280 C300 280 318 250 338 230"/>
+  <path class="line" d="M260 410 C306 410 318 360 338 330"/>
+  <path class="line" d="M555 130 C620 140 642 162 672 185"/>
+  <path class="line" d="M555 230 C610 238 642 260 672 315"/>
+  <path class="line" d="M555 330 C620 330 640 290 672 230"/>
+  <path class="line" d="M555 430 C625 425 646 380 672 355"/>
+  <path class="line" d="M890 202 C930 220 948 245 970 270"/>
+  <path class="line" d="M890 358 C930 340 948 318 970 300"/>
+</svg>

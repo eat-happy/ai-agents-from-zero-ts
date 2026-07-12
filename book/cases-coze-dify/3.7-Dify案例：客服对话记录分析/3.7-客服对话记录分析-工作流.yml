@@ -1,0 +1,669 @@
+app:
+  description: 分析客服对话记录
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 尚硅谷-客服对话记录分析
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.7@c4e7b999ae67bfc059f6f51630bed36def5a835d12b0251694f5784b5ff1cd95
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: qiangxinglin/excel_tools:0.0.4@159fb43e7770973a56a8748b8a3bb1ae1a84fe46da59ab7c46c4689fad4680a0
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: 1763002749502-source-1763003068221-target
+      source: '1763002749502'
+      sourceHandle: source
+      target: '1763003068221'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1763003068221-source-1763003127170-target
+      source: '1763003068221'
+      sourceHandle: source
+      target: '1763003127170'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: iteration
+      id: 1763003127170-source-1763005265901-target
+      source: '1763003127170'
+      sourceHandle: source
+      target: '1763005265901'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: iteration-start
+        targetType: code
+      id: 1763005265901start-source-1763005302262-target
+      source: 1763005265901start
+      sourceHandle: source
+      target: '1763005302262'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: code
+        targetType: llm
+      id: 1763005302262-source-1763005351680-target
+      source: '1763005302262'
+      sourceHandle: source
+      target: '1763005351680'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: code
+        targetType: llm
+      id: 1763005302262-source-1763013319632-target
+      source: '1763005302262'
+      sourceHandle: source
+      target: '1763013319632'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: code
+        targetType: llm
+      id: 1763005302262-source-1763013352437-target
+      source: '1763005302262'
+      sourceHandle: source
+      target: '1763013352437'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: llm
+        targetType: code
+      id: 1763013319632-source-1763014067908-target
+      source: '1763013319632'
+      sourceHandle: source
+      target: '1763014067908'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: llm
+        targetType: code
+      id: 1763005351680-source-1763014067908-target
+      source: '1763005351680'
+      sourceHandle: source
+      target: '1763014067908'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        sourceType: llm
+        targetType: code
+      id: 1763013352437-source-1763014067908-target
+      source: '1763013352437'
+      sourceHandle: source
+      target: '1763014067908'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: iteration
+        targetType: end
+      id: 1763005265901-source-1763002881237-target
+      selected: false
+      source: '1763005265901'
+      sourceHandle: source
+      target: '1763002881237'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          default: ''
+          hint: ''
+          label: input_file
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: true
+          type: file
+          variable: input_file
+      height: 109
+      id: '1763002749502'
+      position:
+        x: 0
+        y: 206
+      positionAbsolute:
+        x: 0
+        y: 206
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        outputs:
+        - value_selector:
+          - '1763005265901'
+          - output
+          value_type: array[object]
+          variable: output
+        selected: false
+        title: 结束
+        type: end
+      height: 88
+      id: '1763002881237'
+      position:
+        x: 2411
+        y: 205
+      positionAbsolute:
+        x: 2411
+        y: 205
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Upload file.
+            ja_JP: Upload file.
+            pt_BR: Upload file.
+            zh_Hans: 上传的文件.
+          label:
+            en_US: File
+            ja_JP: File
+            pt_BR: File
+            zh_Hans: 文件
+          llm_description: Upload file.
+          max: null
+          min: null
+          name: file
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: file
+        params:
+          file: ''
+        provider_id: qiangxinglin/excel_tools/excel_tools
+        provider_name: qiangxinglin/excel_tools/excel_tools
+        provider_type: builtin
+        selected: false
+        title: Excel转Json
+        tool_configurations: {}
+        tool_description: 将Excel转换为Json。
+        tool_label: Excel转Json
+        tool_name: excel2json
+        tool_node_version: '2'
+        tool_parameters:
+          file:
+            type: variable
+            value:
+            - '1763002749502'
+            - input_file
+        type: tool
+      height: 52
+      id: '1763003068221'
+      position:
+        x: 341
+        y: 224
+      positionAbsolute:
+        x: 341
+        y: 224
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(text: str):\n    print(f\"{text = }\")\n  \
+          \  text = text.replace('\\\\\\\"', '\"')\n    arr = json.loads(text)\n \
+          \   return {\n        \"result\": arr\n    }\n"
+        code_language: python3
+        outputs:
+          result:
+            children: null
+            type: array[object]
+        selected: false
+        title: 将rows处理为list
+        type: code
+        variables:
+        - value_selector:
+          - '1763003068221'
+          - text
+          value_type: string
+          variable: text
+      height: 52
+      id: '1763003127170'
+      position:
+        x: 682
+        y: 224
+      positionAbsolute:
+        x: 682
+        y: 224
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_handle_mode: terminated
+        height: 498
+        is_parallel: false
+        iterator_input_type: array[object]
+        iterator_selector:
+        - '1763003127170'
+        - result
+        output_selector:
+        - '1763014067908'
+        - result
+        output_type: array[object]
+        parallel_nums: 10
+        selected: false
+        start_node_id: 1763005265901start
+        title: 迭代
+        type: iteration
+        width: 1288
+      height: 498
+      id: '1763005265901'
+      position:
+        x: 1023
+        y: 0
+      positionAbsolute:
+        x: 1023
+        y: 0
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 1288
+      zIndex: 1
+    - data:
+        desc: ''
+        isInIteration: true
+        selected: false
+        title: ''
+        type: iteration-start
+      draggable: false
+      height: 48
+      id: 1763005265901start
+      parentId: '1763005265901'
+      position:
+        x: 60
+        y: 225
+      positionAbsolute:
+        x: 1083
+        y: 225
+      selectable: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-iteration-start
+      width: 44
+      zIndex: 1002
+    - data:
+        code: "\ndef main(row: dict):\n    return {\n        \"id\": row['msg_id'],\n\
+          \        \"msg\": row['history_message']\n    }\n"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        outputs:
+          id:
+            children: null
+            type: string
+          msg:
+            children: null
+            type: string
+        selected: false
+        title: 提取id和msg
+        type: code
+        variables:
+        - value_selector:
+          - '1763005265901'
+          - item
+          value_type: object
+          variable: row
+      height: 52
+      id: '1763005302262'
+      parentId: '1763005265901'
+      position:
+        x: 184
+        y: 224
+      positionAbsolute:
+        x: 1207
+        y: 224
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: e4bd5463-174f-4dc1-aebf-43e0c0220a0d
+          role: system
+          text: "# 角色：对话记录内容分析专家\n你是一名客服对话记录分析专家\n\n## 目标：\n你可以获取对话记录，进行内容分类的打标分析，然后进行输出\n\
+            \n\n## 工作流：\n1.  你可以根据对话记录进行分问题的分类分析 \n- 产品问题：质量缺陷、功能投诉等\n- 服务问题：响应慢投诉、解决效率差等\n\
+            - 体验问题：流程复杂度投诉等\n2. 请根据第一步的判断的问题类型，进一步判断此分类下的具体标签，比如质量缺陷、产品投诉等；如果判断输出的内容标签没有相关，则不输出此分类\n\
+            \n## 输出格式：\n  {\n    \"product\": [\"质量缺陷\", \"功能投诉\", \"使用不便\", \"设计缺陷\"\
+            ]\n  },\n  {\n    \"content\": [\"响应慢投诉\", \"解决效率差\", \"客服态度差\", \"流程繁琐\"\
+            ]\n  },\n  {\n    \"experience \": [\"流程复杂度投诉\", \"界面交互不友好\", \"等待时间长\"\
+            ]\n  }\n\n## 限制：\n- 请严格按格式输出，必须包含product、content、experience三项。"
+        - id: cf428133-53c1-4f7e-8663-993774d98f61
+          role: user
+          text: '{{#1763005302262.msg#}}'
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              content:
+                type: string
+              experience:
+                type: string
+              product:
+                type: string
+            required:
+            - product
+            - content
+            - experience
+            type: object
+        structured_output_enabled: true
+        title: 问题分类
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1763005351680'
+      parentId: '1763005265901'
+      position:
+        x: 525
+        y: 206
+      positionAbsolute:
+        x: 1548
+        y: 206
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: e6c08a78-fb62-4d7f-b8f1-f2f3fe0a8f21
+          role: system
+          text: 你是一名对话总结助手，你可以根据对话信息总结关键信息，总结文案在30个字内
+        - id: 78cda7f6-6146-4b8c-9e82-263779851f3f
+          role: user
+          text: '{{#1763005302262.msg#}}'
+        selected: false
+        title: 内容总结
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1763013319632'
+      parentId: '1763005265901'
+      position:
+        x: 525
+        y: 352
+      positionAbsolute:
+        x: 1548
+        y: 352
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-chat
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: 9f59d627-318f-44d8-9922-8630931a0542
+          role: system
+          text: "# 角色\n你是一名出色的用户情绪分析大师，擅长从对话历史中精准分析出用户的情绪状态。\n\n## 技能\n### 技能 1: 分析情绪等级\n\
+            1. 仔细研读对话历史。\n2. 将用户的情绪准确划分为5个等级。\n-非常负向\n-负向\n-正常\n-正向\n-非常正向\n3. 清晰阐述划分到此等级的依据。\n\
+            ===回复示例===\n   - rank：[具体等级]\n   - reason：[详细说明从对话历史中判断出该情绪等级的理由]\n===示例结束===\n\
+            \n## 限制:\n- 只专注于分析用户在对话历史中的情绪状态，拒绝回答与情绪分析无关的话题。\n- 所输出的内容必须按照给定的格式进行组织，不能偏离框架要求。"
+        - id: 3e480f16-916b-47e7-9930-a64c60f2dc3d
+          role: user
+          text: '{{#1763005302262.msg#}}'
+        selected: false
+        structured_output:
+          schema:
+            additionalProperties: false
+            properties:
+              rank:
+                type: string
+              reason:
+                type: string
+            required:
+            - rank
+            - reason
+            type: object
+        structured_output_enabled: true
+        title: 情感分析
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1763013352437'
+      parentId: '1763005265901'
+      position:
+        x: 525
+        y: 60
+      positionAbsolute:
+        x: 1548
+        y: 60
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        code: "\ndef main(problems: dict, summary: str, senti_analysis: dict, msg_id:\
+          \ str, msg: str):\n    return {\n        \"result\": {\n            \"content\"\
+          : problems['content'],\n            \"experience\": problems['experience'],\n\
+          \            \"product\": problems['product'],\n            \"msg_id\":\
+          \ msg_id,\n            \"msg\": msg,\n            \"summary\": summary,\n\
+          \            \"rank\": senti_analysis['rank'],\n            \"reason\":\
+          \ senti_analysis['reason']\n        }\n    }\n"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763005265901'
+        outputs:
+          result:
+            children: null
+            type: object
+        selected: false
+        title: 聚合分析结果
+        type: code
+        variables:
+        - value_selector:
+          - '1763005351680'
+          - structured_output
+          value_type: object
+          variable: problems
+        - value_selector:
+          - '1763013319632'
+          - text
+          value_type: string
+          variable: summary
+        - value_selector:
+          - '1763013352437'
+          - structured_output
+          value_type: object
+          variable: senti_analysis
+        - value_selector:
+          - '1763005302262'
+          - id
+          value_type: string
+          variable: msg_id
+        - value_selector:
+          - '1763005302262'
+          - msg
+          value_type: string
+          variable: msg
+      height: 52
+      id: '1763014067908'
+      parentId: '1763005265901'
+      position:
+        x: 866
+        y: 224
+      positionAbsolute:
+        x: 1889
+        y: 224
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    viewport:
+      x: -598.8101383934008
+      y: 350.14781814377693
+      zoom: 0.9592457102659562
+  rag_pipeline_variables: []

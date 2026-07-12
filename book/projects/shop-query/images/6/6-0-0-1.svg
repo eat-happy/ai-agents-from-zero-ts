@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">Embedding、MySQL 和日志三类基础能力的协作关系</title>
+  <desc id="desc">展示文本向量化、结构化数据访问和日志追踪如何支撑后续元数据知识库与问数智能体。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #fff; stroke: #cbd5e1; stroke-width: 2; rx: 14; }
+      .blue { fill: #e0f2fe; stroke: #0284c7; }
+      .green { fill: #ecfdf5; stroke: #059669; }
+      .orange { fill: #fff7ed; stroke: #ea580c; }
+      .purple { fill: #f5f3ff; stroke: #7c3aed; }
+      .title { font: 700 24px sans-serif; fill: #0f172a; }
+      .label { font: 700 18px sans-serif; fill: #0f172a; }
+      .text { font: 14px sans-serif; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 2.3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 6 6; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="520"/>
+  <text class="title" x="48" y="54">三类基础能力：把文本变向量，把数据查清楚，把过程记明白</text>
+
+  <rect class="box blue" x="70" y="130" width="230" height="110"/>
+  <text class="label" x="104" y="170">Embedding 服务</text>
+  <text class="text" x="104" y="200">文本转向量</text>
+  <text class="text" x="104" y="224">支撑字段和指标语义检索</text>
+
+  <rect class="box purple" x="380" y="130" width="230" height="110"/>
+  <text class="label" x="414" y="170">Qdrant</text>
+  <text class="text" x="414" y="200">保存字段 / 指标向量</text>
+  <text class="text" x="414" y="224">按语义相似度召回</text>
+
+  <rect class="box green" x="70" y="320" width="230" height="110"/>
+  <text class="label" x="104" y="360">Meta MySQL</text>
+  <text class="text" x="104" y="390">保存表、字段、指标元数据</text>
+  <text class="text" x="104" y="414">给 SQL 上下文提供结构</text>
+
+  <rect class="box green" x="380" y="320" width="230" height="110"/>
+  <text class="label" x="414" y="360">DW MySQL</text>
+  <text class="text" x="414" y="390">模拟教学数据仓库</text>
+  <text class="text" x="414" y="414">执行最终统计 SQL</text>
+
+  <rect class="box orange" x="710" y="130" width="230" height="110"/>
+  <text class="label" x="744" y="170">Loguru</text>
+  <text class="text" x="744" y="200">输出结构化运行日志</text>
+  <text class="text" x="744" y="224">定位节点、SQL 和异常</text>
+
+  <rect class="box orange" x="710" y="320" width="230" height="110"/>
+  <text class="label" x="744" y="360">request_id</text>
+  <text class="text" x="744" y="390">串起一次请求的所有日志</text>
+  <text class="text" x="744" y="414">并发时也能查清链路</text>
+
+  <rect class="box" x="1000" y="220" width="140" height="120"/>
+  <text class="label" x="1026" y="264">问数链路</text>
+  <text class="text" x="1026" y="294">建库</text>
+  <text class="text" x="1026" y="318">检索</text>
+  <text class="text" x="1026" y="342">生成与执行</text>
+
+  <path class="line" d="M300 185 H372"/>
+  <path class="line" d="M610 185 H702"/>
+  <path class="line" d="M610 375 H702"/>
+  <path class="line" d="M940 185 C982 194 998 220 1010 246"/>
+  <path class="line" d="M940 375 C982 366 998 340 1010 314"/>
+  <path class="dash" d="M300 375 H372"/>
+</svg>

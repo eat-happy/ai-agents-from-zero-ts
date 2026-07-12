@@ -1,0 +1,36 @@
+- name: dim_region
+  role: dim
+  description: 地区维度表，用于描述订单发生的地理区域信息。
+  columns:
+    - name: region_name
+      type: varchar(50)
+      role: dimension
+      examples: ["华南", "华东", "西南", "华北", "华中"]
+      description: 订单所属的大区名称，如华东、华南等。
+      alias: ["地区", "区域", "大区"]
+
+    - name: region_id
+      type: varchar(20)
+      role: primary_key
+      examples: ["R001", "R002", "R003", "R004", "R005", "R006"]
+      description: 地区唯一标识。
+      alias: ["地区ID", "区域ID"]
+
+- name: fact_order
+  role: fact
+  description: 订单事实表，记录订单数量和金额等核心指标。
+  columns:
+    - name: order_amount
+      type: float
+      role: measure
+      examples:
+        [8999.0, 6999.0, 125.0, 899.0, 60.0, 1399.0, 40.0, 299.0, 200.0, 9499.0]
+      description: 订单金额。
+      alias: ["销售额", "订单金额", "收入"]
+
+    - name: region_id
+      type: varchar(20)
+      role: foreign_key
+      examples: ["R001", "R005", "R002", "R004", "R003", "R006"]
+      description: 关联地区维度的外键。
+      alias: ["地区ID", "区域ID"]

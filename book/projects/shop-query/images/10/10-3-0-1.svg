@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="520" viewBox="0 0 1180 520" role="img" aria-labelledby="title desc">
+  <title id="title">LangGraph 五件套在问数智能体中的位置</title>
+  <desc id="desc">展示 StateGraph、State、Node、Edge 和 Runtime Context 如何共同组成可执行问数工作流。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .box { fill: #fff; stroke: #cbd5e1; stroke-width: 2; rx: 14; }
+      .core { fill: #f5f3ff; stroke: #7c3aed; }
+      .state { fill: #e0f2fe; stroke: #0284c7; }
+      .node { fill: #ecfdf5; stroke: #059669; }
+      .edge { fill: #fff7ed; stroke: #ea580c; }
+      .runtime { fill: #fef2f2; stroke: #dc2626; }
+      .title { font: 700 24px sans-serif; fill: #0f172a; }
+      .label { font: 700 18px sans-serif; fill: #0f172a; }
+      .text { font: 14px sans-serif; fill: #475569; }
+      .line { stroke: #334155; stroke-width: 2.3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect class="bg" width="1180" height="520"/>
+  <text class="title" x="48" y="54">LangGraph 五件套：把复杂问数流程拆成可执行工作流</text>
+
+  <rect class="box core" x="460" y="88" width="260" height="105"/>
+  <text class="label" x="515" y="130">StateGraph</text>
+  <text class="text" x="500" y="160">注册节点，连接边，编译成图</text>
+
+  <rect class="box state" x="100" y="245" width="220" height="105"/>
+  <text class="label" x="150" y="287">State</text>
+  <text class="text" x="132" y="317">保存问题、召回结果、SQL</text>
+
+  <rect class="box node" x="365" y="245" width="220" height="105"/>
+  <text class="label" x="418" y="287">Node</text>
+  <text class="text" x="397" y="317">抽取、召回、过滤、执行</text>
+
+  <rect class="box edge" x="630" y="245" width="220" height="105"/>
+  <text class="label" x="684" y="287">Edge</text>
+  <text class="text" x="662" y="317">决定下一步和条件分支</text>
+
+  <rect class="box runtime" x="895" y="245" width="220" height="105"/>
+  <text class="label" x="936" y="287">Runtime Context</text>
+  <text class="text" x="927" y="317">注入 Repository、LLM、依赖</text>
+
+  <rect class="box" x="435" y="405" width="310" height="66"/>
+  <text class="label" x="486" y="432">Streaming</text>
+  <text class="text" x="472" y="458">把节点进度和结果实时推给接口层</text>
+
+  <path class="line" d="M505 193 L275 244"/>
+  <path class="line" d="M560 193 L498 244"/>
+  <path class="line" d="M620 193 L704 244"/>
+  <path class="line" d="M675 193 L938 244"/>
+  <path class="line" d="M475 350 L540 400"/>
+  <path class="line" d="M740 350 L640 400"/>
+</svg>

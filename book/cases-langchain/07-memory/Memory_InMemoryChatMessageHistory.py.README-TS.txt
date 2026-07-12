@@ -1,0 +1,1 @@
+This Python file is kept for comparison. Prefer the sibling .ts file and /examples curated demos.
