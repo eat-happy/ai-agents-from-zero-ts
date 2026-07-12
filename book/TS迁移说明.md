@@ -38,3 +38,18 @@ npm run case:supervisor
 - 这是**教学可读的 TypeScript 轨道写法**，不是逐文件保证可运行。
 - 可运行精校清单见 [POLISHED-CASES.md](POLISHED-CASES.md) 与根目录 xamples/。
 - 若看到语法未完全闭合的自动迁移痕迹，以精校案例为准。
+
+## 重要更正（代码策略）
+
+此前使用“Python 自动机翻成 TS”的方式**不正确**，会导致半 Python 半 TS 的不可读代码。
+
+当前策略：
+
+1. **中文讲解**：保留原教程
+2. **代码块**：替换为仓库内**真实可运行 TypeScript**
+   - `examples/**`
+   - `book/cases-*/**` 精校案例
+   - `apps/shop-query-agent/**`（电商问数 Demo）
+3. 不再维护脆弱的整本机翻脚本结果
+
+若某章节代码仍显示异常，请对照章节顶部的「TypeScript 可运行示例（推荐）」与 [POLISHED-CASES](POLISHED-CASES.md)。

@@ -1,40 +1,52 @@
-# 第 5 章 TypeScript / Node.js 调用 Coze 平台工作流
-
+# 5 - Python 调用 Coze 平台工作流
 
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
 
-## TypeScript / Node.js 最小可运行示例
+## TypeScript 可运行示例（推荐）
 
-> 本章原 Python 调用示例已迁移。下面给出 Node.js 侧最常用的 etch 写法，便于你直接落地。
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
 
-```ts
-const COZE_TOKEN = process.env.COZE_TOKEN!;
-const WORKFLOW_ID = process.env.COZE_WORKFLOW_ID!;
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
-async function runCozeWorkflow(parameters: Record<string, unknown>) {
-  const res = await fetch("https://api.coze.cn/v1/workflow/run", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${COZE_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      workflow_id: WORKFLOW_ID,
-      parameters,
-    }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
 }
 
-const result = await runCozeWorkflow({ input: "生成一份商品卖点" });
-console.log(result);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
-本章偏**平台调用实战**：学会用 API 和 TypeScript / Node.js 调用你在 Coze 上已搭建好的工作流，把“扣子里的工作流”接进本地代码和业务系统。
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
+
+
+本章偏**平台调用实战**：学会用 API 和 Python 调用你在 Coze 上已搭建好的工作流，把“扣子里的工作流”接进本地代码和业务系统。
 
 ---
 
@@ -166,7 +178,7 @@ curl -X POST 'https://api.coze.cn/v1/workflow/stream_run' \
 
 ---
 
-## 5、用 TypeScript / Node.js 调用 Coze 工作流
+## 5、用 Python 调用 Coze 工作流
 
 ### 5.1 官方 Python SDK 入口
 
@@ -183,143 +195,102 @@ npm install cozepy
 ### 5.3 示例源码
 
 ````typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-/* 
-This example describes how to use the workflow interface to stream chat.
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
  */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
-// Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
-from cozepy import COZE_CN_BASE_URL
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
-// Get an access_token through personal access token || oauth.
-coze_api_token = '{API_KEY}'
-// The default access is api.coze.com, but if you need to access api.coze.cn,
-// please use base_url to configure the api endpoint to access
-coze_api_base = COZE_CN_BASE_URL
+  console.log("\n[AI]");
+  console.log(res.content);
+}
 
-from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  // noqa
-
-// Init the Coze client through the access_token.
-coze = Coze(auth=TokenAuth(token=coze_api_token), configuration:{ baseURL:coze_api_base)
-
-// Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
-workflow_id = '{WORKFLOW_ID}'
-
-
-// The stream interface will return an iterator of WorkflowEvent. Developers should iterate
-// through this iterator to obtain WorkflowEvent && handle them separately according to
-// the type of WorkflowEvent.
-function handle_workflow_iterator(stream: Stream[WorkflowEvent]) {
-    for (const event of stream) {
-        if (event.event == WorkflowEventType.MESSAGE) {
-            console.log("got message", event.message)
-        } else if (event.event == WorkflowEventType.ERROR) {
-            console.log("got error", event.error)
-        } else if (event.event == WorkflowEventType.INTERRUPT) {
-            handle_workflow_iterator(
-                coze.workflows.runs.resume(
-                    workflow_id=workflow_id,
-                    event_id=event.interrupt.interrupt_data.event_id,
-                    resume_data="hey",
-                    interrupt_type=event.interrupt.interrupt_data.type,
-                )
-            )
-
-
-handle_workflow_iterator(
-    coze.workflows.runs.stream(
-        workflow_id=workflow_id
-    )
-)
-
-### 5.4 在本地 VS Code / WebStorm 中运行
-
-当你直接拷贝平台生成代码时，如果工作流定义了输入变量，但 `stream()` 调用里没有传 `parameters`，就会报错。
-
-![在 VS Code / WebStorm 中运行 Coze 工作流代码时报缺少 parameters 的界面示意图](images/5/5-5-4-1.png)
-
-平台里的提示也已经很清楚：
-
-![Coze 平台提示需要传入 parameters 参数的界面示意图](images/5/5-5-4-2.png)
-
-**处理方式**：在从 Coze 平台拷贝的代码基础上，为 `stream()` 调用增加 **parameters** 参数：
-
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```typescript
-handle_workflow_iterator(
-    coze.workflows.runs.stream(
-        workflow_id=workflow_id,
-        parameters={
-            "link": "https://www.bilibili.com/video/BV1S2421P788/?share_source=copy_web&vd_source=8d04b2c1b7fd20888b03c20e99f26dc0"   # 替换成实际需要的链接
-        }
-    )
-)
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("
+[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ````
 
 ### 5.4 最终代码
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-/* 
-This example describes how to use the workflow interface to stream chat.
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
  */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
-// Our official coze sdk for Python [cozepy](https://github.com/coze-dev/coze-py)
-from cozepy import COZE_CN_BASE_URL
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
-// Get an access_token through personal access token || oauth.
-coze_api_token = 'cztei_hXYOqnustyYyhrSuGFl4tgcxJ9E2KjYLPnHvcEcoWRwWvujWU0sPqka8xyQ1wsCyi'
-// The default access is api.coze.com, but if you need to access api.coze.cn,
-// please use base_url to configure the api endpoint to access
-coze_api_base = COZE_CN_BASE_URL
+  console.log("\n[AI]");
+  console.log(res.content);
+}
 
-from cozepy import Coze, TokenAuth, Stream, WorkflowEvent, WorkflowEventType  // noqa
-
-// Init the Coze client through the access_token.
-coze = Coze(auth=TokenAuth(token=coze_api_token), configuration:{ baseURL:coze_api_base)
-
-// Create a workflow instance in Coze, copy the last number from the web link as the workflow's ID.
-workflow_id = '7537267958432858127'
-
-
-// The stream interface will return an iterator of WorkflowEvent. Developers should iterate
-// through this iterator to obtain WorkflowEvent && handle them separately according to
-// the type of WorkflowEvent.
-function handle_workflow_iterator(stream: Stream[WorkflowEvent]) {
-    for (const event of stream) {
-        if (event.event == WorkflowEventType.MESSAGE) {
-            console.log("got message", event.message)
-        } else if (event.event == WorkflowEventType.ERROR) {
-            console.log("got error", event.error)
-        } else if (event.event == WorkflowEventType.INTERRUPT) {
-            handle_workflow_iterator(
-                coze.workflows.runs.resume(
-                    workflow_id=workflow_id,
-                    event_id=event.interrupt.interrupt_data.event_id,
-                    resume_data="hey",
-                    interrupt_type=event.interrupt.interrupt_data.type,
-                )
-            )
-
-
-handle_workflow_iterator(
-    coze.workflows.runs.stream(
-        workflow_id=workflow_id,
-        parameters={
-            "link": "https://www.bilibili.com/video/BV1S2421P788/?share_source=copy_web&vd_source=8d04b2c1b7fd20888b03c20e99f26dc0"   // 替换成实际需要的链接
-        }
-    )
-)
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 5.5 运行结果
 
-![TypeScript / Node.js 调用 Coze 工作流后的运行结果界面示意图](images/5/5-5-5-1.png)
+![Python 调用 Coze 工作流后的运行结果界面示意图](images/5/5-5-5-1.png)
 
 ## 6、除了 SDK，还可以在平台侧运行
 
@@ -331,7 +302,7 @@ handle_workflow_iterator(
 
 1. 先在平台确认工作流逻辑跑通
 2. 再用 API playground 验证请求结构
-3. 最后再接入 TypeScript 代码
+3. 最后再接入 Python 代码
 
 这样最容易把问题分层定位，而不是平台和代码一起调，最后什么都分不清。
 
@@ -341,13 +312,13 @@ handle_workflow_iterator(
 
 1. 调用 Coze 工作流前，你会如何确认“平台侧已经准备好”？
 
-   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，TypeScript 代码再完整也只会放大问题。
+   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，Python 代码再完整也只会放大问题。
 
 2. Coze 和 Dify 的接口字段不同，但调用主线为什么很像？
 
    **参考思路：** 两者本质都是把平台工作流暴露成 API：发布、鉴权、传业务参数、接收运行结果、回日志核对。字段名会变，排查顺序和工程关注点差不多。
 
-3. 如果 TypeScript 代码没有拿到预期输出，你会如何分层排查？
+3. 如果 Python 代码没有拿到预期输出，你会如何分层排查？
 
    **参考思路：** 先在平台调试工作流，再用 API playground 或最小请求确认接口，最后看 Python 解析逻辑。这样能分清是平台配置、接口参数、鉴权，还是代码处理的问题。
 

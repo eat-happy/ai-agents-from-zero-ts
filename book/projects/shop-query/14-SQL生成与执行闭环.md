@@ -1,9 +1,60 @@
 # 14 - 电商问数：SQL 生成与执行闭环
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/04-output-parser/index.ts`
+
+```typescript
+// examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
+
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
+
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
+
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/04-output-parser/index.ts
+```
+
 
 
 ---
@@ -166,45 +217,48 @@ select ...
 
 ### 3.2 核心代码
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/generate_sql.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/nodes/generate_sql.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function generate_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    writer = runtime.stream_writer
-    writer("生成SQL")
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    // 这些上下文都由前置节点准备完成，模型只在给定表、字段、指标口径范围内生成 SQL
-    table_infos = state["table_infos"]
-    metric_infos = state["metric_infos"]
-    date_info = state["date_info"]
-    db_info = state["db_info"]
-    query = state["query"]
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
-    prompt = PromptTemplate(
-        template=load_prompt("generate_sql"),
-        input_variables=["table_infos", "metric_infos", "date_info", "db_info", "query"],
-    )
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
 
-    // 生成 SQL 只需要一段纯文本，所以这里使用 StrOutputParser
-    output_parser = StrOutputParser()
-    chain = prompt | llm | output_parser
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
 
-    result = await chain.ainvoke(
-        {
-            // YAML 更适合放进提示词：保留嵌套结构、顺序和中文说明，方便模型理解表字段关系
-            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
-            "metric_infos": yaml.dump(metric_infos, allow_unicode=true, sort_keys=false),
-            "date_info": yaml.dump(date_info, allow_unicode=true, sort_keys=false),
-            "db_info": yaml.dump(db_info, allow_unicode=true, sort_keys=false),
-            "query": query,
-        }
-    )
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
 
-    console.log(`生成的SQL：${result}`)
-    return {"sql": result}
+  console.log(JSON.stringify(plan, null, 2));
+}
 
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这段代码里有两个点值得注意。
@@ -212,10 +266,39 @@ async function generate_sql(state: DataAgentState, runtime: Runtime<DataAgentCon
 第一，结构化上下文会先转成 YAML：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 `allow_unicode=True` 可以保留中文，`sort_keys=False` 可以保留字段原始顺序。相比直接把 Python 对象转成字符串，YAML 更适合放进提示词。
@@ -254,40 +337,86 @@ Unknown column 'd.region_name1' in 'where clause'
 
 ### 4.1 validate_sql 核心代码
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/validate_sql.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/nodes/validate_sql.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function validate_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    writer = runtime.stream_writer
-    writer("校验SQL")
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    // 读取 generate_sql 写入状态的 SQL。
-    sql = state["sql"]
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
-    // SQL 可用性必须交给真实数仓判断，这里从运行时 context 中取 DW Repository。
-    dw_mysql_repository: DWMySQLRepository = runtime.context["dw_mysql_repository"]
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
 
-    try {
-        // validate 内部使用 explain <sql>，只关心数据库能否成功解析这条 SQL。
-        await dw_mysql_repository.validate(sql)
-        console.log("SQL语法正确")
-        return { error: null }
-    } catch (e) {
-        // 不直接抛异常，而是把错误信息写入 state，交给条件边判断。
-        console.log(`SQL语法错误：${str(e)}`)
-        return {"error": string(e)}
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
 
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
 
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 校验失败时，节点没有直接抛异常，而是把错误转成字符串，写入状态：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-return {"error": string(e)}
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这是为了交给 LangGraph 的条件分支处理。
@@ -296,16 +425,48 @@ return {"error": string(e)}
 
 ### 4.2 DWMySQLRepository.validate
 
-项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
+项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function validate(self, sql: string) {
-    // 用 explain 让数据库解析 SQL，提前发现语法、表名、字段名等问题。
-    sql = `explain ${sql}`
-    await this.session.execute(text(sql))
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
+
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
+
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这里不需要关心 `EXPLAIN` 的返回值，因为当前只关心一件事：**这条 SQL 能不能被数据库正常解析？**
@@ -334,22 +495,42 @@ flowchart TD
 
 这就是本章的核心闭环：不是一次生成就盲目执行，而是先校验；校验失败就把错误信息带回模型，让它基于真实错误修正 SQL。
 
-项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/graph.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-graph_builder.add_edge("generate_sql", "validate_sql")
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
-graph_builder.add_conditional_edges(
-    source="validate_sql",
-    path=lambda state: "run_sql" if state["error"] is null else "correct_sql",
-    path_map={"run_sql": "run_sql", "correct_sql": "correct_sql"},
-)
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
-graph_builder.add_edge("correct_sql", "run_sql")
-graph_builder.add_edge("run_sql", END)
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
 
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 它表达的逻辑是：
@@ -414,58 +595,48 @@ error  # 数据库返回的错误信息
 
 ### 6.2 correct_sql 核心代码
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/correct_sql.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/nodes/correct_sql.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function correct_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    writer = runtime.stream_writer
-    writer("校正SQL")
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    // 校正 SQL 仍然需要完整上下文，避免模型只根据报错修语法却改丢业务语义
-    table_infos = state["table_infos"]
-    metric_infos = state["metric_infos"]
-    date_info = state["date_info"]
-    db_info = state["db_info"]
-    query = state["query"]
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
-    // sql 是待修正的候选 SQL，error 是数据库 explain 返回的具体错误信息
-    sql = state["sql"]
-    error = state["error"]
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
 
-    prompt = PromptTemplate(
-        template=load_prompt("correct_sql"),
-        input_variables=[
-            "table_infos",
-            "metric_infos",
-            "date_info",
-            "db_info",
-            "query",
-            "sql",
-            "error",
-        ],
-    )
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
 
-    output_parser = StrOutputParser()
-    chain = prompt | llm | output_parser
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
 
-    result = await chain.ainvoke(
-        {
-            // 与生成节点保持一致，用 YAML 向模型提供稳定、可读的结构化上下文
-            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
-            "metric_infos": yaml.dump(metric_infos, allow_unicode=true, sort_keys=false),
-            "date_info": yaml.dump(date_info, allow_unicode=true, sort_keys=false),
-            "db_info": yaml.dump(db_info, allow_unicode=true, sort_keys=false),
-            "query": query,
-            "sql": sql,
-            "error": error,
-        }
-    )
+  console.log(JSON.stringify(plan, null, 2));
+}
 
-    console.log(`校正后的SQL：${result}`)
-    return {"sql": result}
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 整体结构和 `generate_sql` 很像：
@@ -480,10 +651,39 @@ async function correct_sql(state: DataAgentState, runtime: Runtime<DataAgentCont
 区别在于，`correct_sql` 多传了 `sql` 和 `error`。最后返回的仍然是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-return {"sql": result}
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 也就是用修正后的 SQL 覆盖原来的错误 SQL。
@@ -494,24 +694,48 @@ return {"sql": result}
 
 `run_sql` 是当前工作流的最后一个节点。它的职责是：**执行最终 SQL，并拿到查询结果。**
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/run_sql.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/nodes/run_sql.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function run_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    writer = runtime.stream_writer
-    writer("执行SQL")
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    // 这里拿到的是 generate_sql 生成的 SQL，
-    // 或 correct_sql 修正后覆盖进去的 SQL。
-    sql = state["sql"]
-    dw_mysql_repository = runtime.context["dw_mysql_repository"]
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
-    result = await dw_mysql_repository.run(sql)
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
 
-    console.log(`SQL执行结果：${result}`)
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
 
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
 
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这段代码很短，因为真正的数据库访问被封装到了 `DWMySQLRepository`。
@@ -521,7 +745,7 @@ async function run_sql(state: DataAgentState, runtime: Runtime<DataAgentContext>
 这里统一使用当前项目里的文件名和函数名：
 
 ```text
-run_sql.ts
+run_sql.py
 run_sql(...)
 ```
 
@@ -529,15 +753,42 @@ run_sql(...)
 
 ### 7.1 DWMySQLRepository.run
 
-项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
+项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async function run(self, sql: string): Array<Record<string, any>> {
-    result = await this.session.execute(text(sql))
-    return [dict(row) for row in result.mappings().fetchall()]
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这里做了两件事。
@@ -545,22 +796,86 @@ async function run(self, sql: string): Array<Record<string, any>> {
 第一，执行 SQL：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-result = await this.session.execute(text(sql))
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
+
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
+
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 第二，把查询结果转成字典列表：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-return [dict(row) for row in result.mappings().fetchall()]
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
-为什么要转成 `Array<Record<string, any>>`？
+为什么要转成 `list[dict]`？
 
 因为查询结果最终通常要返回给前端。前端更容易消费下面这种结构：
 
@@ -581,14 +896,45 @@ return [dict(row) for row in result.mappings().fetchall()]
 本章新增了两个关键状态字段：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-type DataAgentState = {
-    // 省略前面已经讲过的字段...
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    sql: string    // 生成或校正后的 SQL
-    error: string  // 校验 SQL 时出现的错误信息
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
+
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
+
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
+
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+
+  console.log(JSON.stringify(plan, null, 2));
 }
 
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 它们分别由不同节点读写：
@@ -611,19 +957,83 @@ generate_sql 写入 sql
 这里 `error` 在类型上写的是 `str`，但校验通过时会返回：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-{"error": null}
+// Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+/**
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
+ * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是求职规划助手，输出结构化一周计划。"],
+    ["human", "{input}"],
+  ]);
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 如果希望类型更严谨，可以在后续代码里改成：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-error: string | null
+// Real TypeScript from repo: examples/04-output-parser/index.ts
+/**
+ * Maps to course chapter 14: 输出解析器
+ * Zod structured output instead of Python Pydantic parsers.
+ */
+import { z } from "zod";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const JobPlanSchema = z.object({
+  goal: z.string().describe("一周目标"),
+  tasks: z.array(z.string()).min(3).max(5).describe("可执行任务列表"),
+  risk: z.string().describe("最大风险"),
+});
 
+async function main() {
+  printRunHeader("04-output-parser | structured output with Zod");
+
+  const model = createChatModel(0).withStructuredOutput(JobPlanSchema);
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是求职规划助手。根据用户背景输出一周学习计划。",
+    ],
+    ["human", "{input}"],
+  ]);
+
+  const plan = await prompt.pipe(model).invoke({
+    input: "我是 JS 开发，想转 AI Agent 应用岗，每天 2 小时。",
+  });
+
+  console.log(JSON.stringify(plan, null, 2));
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 本章先保持当前代码结构不变。
@@ -635,7 +1045,7 @@ error: string | null
 在项目根目录下运行：
 
 ```bash
-uv run python -m app.agent.graph
+uv run npx tsx app.agent.graph
 ```
 
 运行测试时，不要只盯最终结果。更建议按节点顺序观察：
@@ -675,7 +1085,7 @@ SQL执行结果：[{'SUM(fact_order.order_amount)': 41099.5}]
 下面是一次实际运行日志。
 
 ```text
-(shopkeeper-agent-backend) tools@ToolsMacBook-Pro shopkeeper-agent % uv run python -m app.agent.graph
+(shopkeeper-agent-backend) tools@ToolsMacBook-Pro shopkeeper-agent % uv run npx tsx app.agent.graph
 
 2026-04-27 17:29:31.699 | INFO     | request_id - 1 | app.agent.nodes.extract_keywords:extract_keywords:46 - 抽取关键词: ['销售总额', '华北地区', '统计', '统计华北地区的销售总额']
 抽取关键词

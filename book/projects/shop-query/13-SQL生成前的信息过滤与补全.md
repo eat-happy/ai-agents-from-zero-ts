@@ -1,9 +1,52 @@
 # 13 - 电商问数：SQL 生成前的信息过滤与补全
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/03-prompt-template/index.ts`
+
+```typescript
+// examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/03-prompt-template/index.ts
+```
+
 
 
 ---
@@ -154,10 +197,37 @@ Python 对象 -> YAML 字符串
 本项目里选择 YAML：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这样做有几个好处：
@@ -262,64 +332,33 @@ yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
 
 ### 5.2 filter_table 核心代码
 
-项目对应文件路径：`app/agent/nodes/filter_table.ts`
+项目对应文件路径：`app/agent/nodes/filter_table.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import yaml
-import { JsonOutputParser } from "@langchain/core/output_parsers";
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
 import { PromptTemplate } from "@langchain/core/prompts";
-from langgraph.runtime import Runtime
 
-from app.agent.context import DataAgentContext
-from app.agent.llm import llm
-from app.agent.state import DataAgentState, TableInfoState
-from app.core.log import logger
-from app.prompt.prompt_loader import load_prompt
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
 
-async function filter_table(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    /* 根据用户问题裁剪候选表结构上下文 */
-
-    writer = runtime.stream_writer
-    writer("过滤表信息")
-
-    query = state["query"]
-    table_infos: any[][TableInfoState] = state["table_infos"]
-
-    // table_infos 是嵌套结构，转成 YAML 后更适合放进提示词，也保留中文字段说明
-    prompt = PromptTemplate(
-        template=load_prompt("filter_table_info"),
-        input_variables=["query", "table_infos"],
-    )
-    // filter_table_info prompt 要求模型只输出 JSON 对象：表名 -> 字段名列表
-    output_parser = JsonOutputParser()
-    // LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
-    chain = prompt | llm | output_parser
-
-    result = await chain.ainvoke(
-        {
-            "query": query,
-            "table_infos": yaml.dump(table_infos, allow_unicode=true, sort_keys=false),
-        }
-    )
-    // 模型只负责选择，程序根据选择结果从原始 TableInfoState 中裁剪，避免模型重写复杂结构出错
-    filtered_table_infos: any[][TableInfoState] = []
-    for (const table_info of table_infos) {
-        if (table_info["name"] in result) {
-            table_info["columns"] = [
-                column_info
-                for column_info in table_info["columns"]
-                if column_info["name"] in result[table_info["name"]]
-            ]
-            filtered_table_infos.append(table_info)
-
-    logger.info(
-        `过滤后的表信息：${[filtered_table_info['name'] for filtered_table_info in filtered_table_infos]}`
-    )
-    return {"table_infos": filtered_table_infos}
-
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这段代码可以拆成四步。
@@ -327,20 +366,83 @@ async function filter_table(state: DataAgentState, runtime: Runtime<DataAgentCon
 第一步，读取用户问题和上一章合并出来的表结构：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-query = state["query"]
-table_infos: any[][TableInfoState] = state["table_infos"]
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 第二步，构建一条最小 LCEL 链：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-chain = prompt | llm | output_parser
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这里使用 `JsonOutputParser`，是因为提示词要求模型只输出 JSON 对象。解析后，`result` 就是 Python 字典。
@@ -348,10 +450,30 @@ chain = prompt | llm | output_parser
 第三步，把 `table_infos` 序列化成 YAML 后传给模型：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 第四步，根据模型返回的字典裁剪原始表结构。
@@ -359,10 +481,47 @@ yaml.dump(table_infos, allow_unicode=true, sort_keys=false)
 这里没有在遍历 `table_infos` 时直接 `remove` 元素。因为遍历列表时删除元素，容易造成索引错位，导致漏处理。更稳的方式是新建一个列表：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-filtered_table_infos: any[][TableInfoState] = []
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 需要保留的表，再追加进去。
@@ -370,23 +529,66 @@ filtered_table_infos: any[][TableInfoState] = []
 字段过滤则使用列表推导式：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-table_info["columns"] = [
-    column_info
-    for column_info in table_info["columns"]
-    if column_info["name"] in result[table_info["name"]]
-]
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 最后返回：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-return {"table_infos": filtered_table_infos}
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 返回同名 key 会覆盖 `state["table_infos"]`，后续节点读取到的就是过滤后的表结构。
@@ -457,62 +659,50 @@ AOV
 
 ### 6.2 filter_metric 核心代码
 
-项目对应文件路径：`app/agent/nodes/filter_metric.ts`
+项目对应文件路径：`app/agent/nodes/filter_metric.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import yaml
-import { JsonOutputParser } from "@langchain/core/output_parsers";
-import { PromptTemplate } from "@langchain/core/prompts";
-from langgraph.runtime import Runtime
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
-from app.agent.context import DataAgentContext
-from app.agent.llm import llm
-from app.agent.state import DataAgentState, MetricInfoState
-from app.core.log import logger
-from app.prompt.prompt_loader import load_prompt
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
 
-async function filter_metric(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    /* 根据用户问题裁剪候选指标上下文 */
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
 
-    writer = runtime.stream_writer
-    writer("过滤指标信息")
-
-    query = state["query"]
-    metric_infos: any[][MetricInfoState] = state["metric_infos"]
-
-    // metric_infos 转成 YAML 后作为候选项交给模型，模型只需要返回被选中的指标名称
-    prompt = PromptTemplate(
-        template=load_prompt("filter_metric_info"),
-        input_variables=["query", "metric_infos"],
-    )
-    // filter_metric_info prompt 要求模型只输出 JSON 数组
-    output_parser = JsonOutputParser()
-    // LCEL 管道：填充提示词 -> 调用模型 -> 解析 JSON
-    chain = prompt | llm | output_parser
-
-    result = await chain.ainvoke(
-        {
-            "query": query,
-            "metric_infos": yaml.dump(
-                metric_infos, allow_unicode=true, sort_keys=false
-            ),
-        }
-    )
-    // 用模型返回的指标名称过滤原始结构，保留描述 依赖字段 别名等完整上下文
-    filtered_metric_infos = [
-        metric_info
-        for metric_info in metric_infos
-        if metric_info["name"] in result
-    ]
-
-    logger.info(
-        `过滤后的指标信息：${[filtered_metric_info['name'] for filtered_metric_info in filtered_metric_infos]}`
-    )
-    return {"metric_infos": filtered_metric_infos}
-
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这段代码比 `filter_table` 更短，因为指标没有“表 -> 字段”这种嵌套层级。
@@ -520,32 +710,112 @@ async function filter_metric(state: DataAgentState, runtime: Runtime<DataAgentCo
 模型返回的是指标名列表，例如：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-["GMV"]
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 程序只需要保留名称在 `result` 中出现的指标：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-filtered_metric_infos = [
-    metric_info
-    for metric_info in metric_infos
-    if metric_info["name"] in result
-]
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 最后同样覆盖原来的状态：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-return {"metric_infos": filtered_metric_infos}
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 ---
@@ -554,19 +824,42 @@ return {"metric_infos": filtered_metric_infos}
 
 `filter_table` 和 `filter_metric` 都依赖 `merge_retrieved_info` 的结果，但它们彼此之间没有依赖关系。
 
-所以在 `graph.ts` 中，它们是从同一个节点分出去的：
+所以在 `graph.py` 中，它们是从同一个节点分出去的：
 
-项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/graph.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-graph_builder.add_edge("merge_retrieved_info", "filter_table")
-graph_builder.add_edge("merge_retrieved_info", "filter_metric")
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-graph_builder.add_edge("filter_table", "add_extra_context")
-graph_builder.add_edge("filter_metric", "add_extra_context")
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 意思是：
@@ -616,47 +909,83 @@ db_info    # 数据库方言、数据库版本
 
 ### 8.1 补齐 State 和 Context
 
-项目对应文件路径：`shopkeeper-agent/app/agent/state.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/state.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-type DateInfoState = {
-    date: string
-    weekday: string
-    quarter: string
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
-type DBInfoState = {
-    dialect: string
-    version: string
-
-
-type DataAgentState = {
-    // 前面章节已有字段省略...
-
-    date_info: DateInfoState  // 当前日期 星期和季度信息
-    db_info: DBInfoState  // 数据库方言和版本信息
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
 }
 
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 `DateInfoState` 和 `DBInfoState` 定义了两份上下文的结构。`DataAgentState` 里加入 `date_info`、`db_info` 后，后续的 `generate_sql` 节点就可以稳定读取它们。
 
 `add_extra_context` 还需要访问数仓数据库，查询数据库版本和方言，所以 `DataAgentContext` 中要有 `dw_mysql_repository`。
 
-项目对应文件路径：`shopkeeper-agent/app/agent/context.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/context.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from app.repositories.mysql.dw.dw_mysql_repository import DWMySQLRepository
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
-type DataAgentContext = {
-    // 前面章节已有字段省略...
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
 
-    dw_mysql_repository: DWMySQLRepository
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
 }
 
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这里使用的是 `DWMySQLRepository`，不是 `MetaMySQLRepository`。
@@ -669,39 +998,40 @@ type DataAgentContext = {
 
 ### 8.2 add_extra_context 核心代码
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/add_extra_context.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/nodes/add_extra_context.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from datetime import date
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-from langgraph.runtime import Runtime
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
-from app.agent.context import DataAgentContext
-from app.agent.state import DataAgentState, DateInfoState, DBInfoState
-from app.core.log import logger
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
 
-async function add_extra_context(state: DataAgentState, runtime: Runtime<DataAgentContext>) {
-    /* 补齐 SQL 生成所需的日期和数据库环境信息 */
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
 
-    dw_mysql_repository = runtime.context["dw_mysql_repository"]
+  console.log(res.content);
+}
 
-    // 当前日期信息会帮助模型处理“今天 本月 本季度 最近 N 天”等相对时间表达
-    today = date.today()
-    date_str = today.strftime("%Y-%m-%d")
-    weekday = today.strftime("%A")
-    quarter = `Q${(today.month - 1) // 3 + 1}`
-    date_info = DateInfoState(date=date_str, weekday=weekday, quarter=quarter)
-
-    // 数据库方言和版本会影响函数名 日期运算 limit 语法等 SQL 细节
-    db = await dw_mysql_repository.get_db_info()
-    db_info = DBInfoState(**db)
-    console.log(`数据库信息：${db_info}`)
-    console.log(`日期信息：${date_info}`)
-    return {"date_info": date_info, "db_info": db_info}
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这段代码做两件事。
@@ -709,13 +1039,30 @@ async function add_extra_context(state: DataAgentState, runtime: Runtime<DataAge
 第一，生成当前日期信息：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-today = date.today()
-date_str = today.strftime("%Y-%m-%d")
-weekday = today.strftime("%A")
-quarter = `Q${(today.month - 1) // 3 + 1}`
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 `date_str` 是日期字符串，例如：
@@ -739,19 +1086,83 @@ Q2
 季度计算这里要注意一个小细节：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-(today.month - 1) // 3 + 1
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 不能直接写成：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-today.month // 3 + 1
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 因为 3 月如果直接 `3 // 3 + 1`，会算成第二季度。先减 1，再整除 3，才能保证 1、2、3 月都属于 `Q1`。
@@ -759,20 +1170,76 @@ today.month // 3 + 1
 第二，查询数据库信息：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-db = await dw_mysql_repository.get_db_info()
-db_info = DBInfoState(**db)
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 `get_db_info()` 返回的是一个字典：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-{"dialect": "mysql", "version": "8.0.x"}
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 字段名刚好和 `DBInfoState` 对应，所以可以用 `**db` 解包创建。
@@ -781,32 +1248,40 @@ db_info = DBInfoState(**db)
 
 ## 9、DWMySQLRepository 如何获取数据库信息
 
-项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
+项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import any /* AsyncSession */
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
-class DWMySQLRepository {
-    /* 负责查询数仓真实表结构和字段样例值 */
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
 
-    constructor(self, session: any /* AsyncSession */) {
-        this.session = session
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
 
-    async function get_db_info(self) {
-        /* 读取当前数仓数据库的方言和版本，供 SQL 生成提示词使用 */
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
 
-        sql = "select version()"
-        result = await this.session.execute(text(sql))
-        version = result.scalar()
+  console.log(res.content);
+}
 
-        // dialect 来自 SQLAlchemy 当前绑定的数据库方言，例如 mysql
-        dialect = this.session.bind.dialect.name
-        return {"dialect": dialect, "version": version}
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这里获取了两个信息。
@@ -820,10 +1295,30 @@ select version()
 这条 SQL 在 MySQL 中会返回当前数据库版本。因为结果只有一行一列，所以代码里直接使用：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-version = result.scalar()
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 `scalar()` 适合取单个值，比 `fetchall()[0][0]` 更直观。
@@ -831,10 +1326,47 @@ version = result.scalar()
 第二，数据库方言：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-dialect = this.session.bind.dialect.name
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 当前项目使用 SQLAlchemy 管理数据库连接，`dialect.name` 可以拿到当前连接对应的数据库类型，比如：
@@ -848,43 +1380,73 @@ postgresql
 
 ---
 
-## 10、在 graph.ts 中传入 DW Repository
+## 10、在 graph.py 中传入 DW Repository
 
 因为 `add_extra_context` 会读取：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-runtime.context["dw_mysql_repository"]
+// Real TypeScript from repo: examples/03-prompt-template/index.ts
+/**
+ * Maps to course chapter 13: 提示词与消息模板
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("03-prompt-template | ChatPromptTemplate");
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答要简洁，并给出 1 个可执行建议。"],
+    ["human", "主题：{topic}"],
+  ]);
+
+  const model = createChatModel(0.2);
+  const chain = prompt.pipe(model);
+
+  const res = await chain.invoke({
+    role: "Agent 求职教练",
+    topic: "如何用 TypeScript 做 Agent 作品集",
+  });
+
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 所以本地测试工作流时，需要初始化 DW 数据库连接，并把 `DWMySQLRepository` 放进 `context`。
 
-项目对应文件路径：`shopkeeper-agent/app/agent/graph.ts`
+项目对应文件路径：`shopkeeper-agent/app/agent/graph.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-meta_mysql_client_manager.init()
-dw_mysql_client_manager.init()
+// Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+/**
+ * 【精校可运行】PromptTemplate.fromTemplate（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
+ */
+import { PromptTemplate } from "@langchain/core/prompts";
 
-async with (
-    meta_mysql_client_manager.session_factory() as meta_session,
-    dw_mysql_client_manager.session_factory() as dw_session,
-):
-    meta_mysql_repository = MetaMySQLRepository(meta_session)
-    dw_mysql_repository = DWMySQLRepository(dw_session)
+async function main() {
+  const prompt = PromptTemplate.fromTemplate(
+    "请用一句话向初学者解释：{concept}",
+  );
+  const text = await prompt.format({ concept: "Tool Calling" });
+  console.log(text);
 
-    context = DataAgentContext(
-        column_qdrant_repository=column_qdrant_repository,
-        embedding_client=embedding_client_manager.client,
-        metric_qdrant_repository=metric_qdrant_repository,
-        value_es_repository=value_es_repository,
-        meta_mysql_repository=meta_mysql_repository,
-        dw_mysql_repository=dw_mysql_repository,
-    )
+  // 也可作为 Runnable 调用
+  const msg = await prompt.invoke({ concept: "RAG" });
+  console.log(msg.toString());
+}
 
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这里同时创建了 `meta_mysql_repository` 和 `dw_mysql_repository`：
@@ -899,16 +1461,53 @@ async with (
 在后端项目根目录运行：
 
 ```bash
-uv run python -m app.agent.graph
+uv run npx tsx app.agent.graph
 ```
 
 测试问题仍然可以使用：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-state = DataAgentState(query="统计华北地区的销售总额")
+// Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+/**
+ * 【精校可运行】ChatPromptTemplate.fromMessages（第 13 章）
+ *
+ *   npx tsx book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
+ */
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
+async function main() {
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "你是{role}，回答简洁。"],
+    ["human", "主题：{topic}"],
+  ]);
 
+  // 先看格式化后的消息
+  const messages = await prompt.formatMessages({
+    role: "求职教练",
+    topic: "如何用 TS 做 Agent 作品集",
+  });
+  console.log(
+    messages.map((m) => `${m.getType()}: ${m.content}`).join("\n"),
+  );
+
+  // 需要 API Key 时才会真正调用模型
+  if (process.env.OPENAI_API_KEY) {
+    const chain = prompt.pipe(createChatModel(0.2));
+    const res = await chain.invoke({
+      role: "求职教练",
+      topic: "如何用 TS 做 Agent 作品集",
+    });
+    console.log("\n[model]\n", res.content);
+  } else {
+    console.log("\n(未设置 OPENAI_API_KEY，跳过模型调用)");
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 流式输出里应该能看到类似下面这些节点进度。由于三路召回、表过滤和指标过滤是并行分支，实际打印顺序可能会略有不同。

@@ -1,9 +1,49 @@
 # 12 - Ollama 本地部署与调用
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
+
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
 
 
 ---
@@ -505,7 +545,7 @@ ollama list
 
 真正的开发目标通常是：
 
-- 在 TypeScript 代码里调用本地模型
+- 在 Python 代码里调用本地模型
 - 让本地模型也能接 Prompt、Parser、LCEL、Agent
 - 让本地模型和云端模型一样，进入统一的 LangChain 生态
 
@@ -551,17 +591,34 @@ ollama list
 最简单的写法可以这样：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from langchain_ollama import ChatOllama
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
-model = ChatOllama(
-    model="qwen:4b",
-    configuration:{ baseURL:"http://localhost:11434",
-)
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
-console.log(model.invoke("什么是 LangChain，100 字以内").content)
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
+  console.log("\n[AI]");
+  console.log(res.content);
+}
 
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这和你在前面章节里学的“字符串 `invoke()`”几乎是一样的，只是端点从云端换成了本地。
@@ -571,16 +628,34 @@ console.log(model.invoke("什么是 LangChain，100 字以内").content)
 如果你希望和 [第 13 章 提示词与消息模板](13-提示词与消息模板.md) 保持一致，也可以传消息列表：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import { HumanMessage } from "@langchain/core/messages";
-from langchain_ollama import ChatOllama
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
-ollama_llm = ChatOllama(model="qwen3:8b")
-messages = [HumanMessage(content="你好，请介绍一下你自己")]
-resp = ollama_llm.invoke(messages)
-console.log(resp.content)
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这种写法的价值在于：  
@@ -598,22 +673,43 @@ console.log(resp.content)
 比如：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-ChatOllama(
-    model="qwen3:8b",
-    configuration:{ baseURL:"http://localhost:11434",
-)
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这在教学上也更直观，因为你能明确知道自己连的是哪个服务地址。
 
 ### 5.6 基本案例
 
-【案例源码】`cases-langchain/03-ollama/LangChain_Ollama.ts`
+【案例源码】`案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py`
 
-[LangChain_Ollama.py](cases-langchain/03-ollama/LangChain_Ollama.ts ":include :type=code")
+[LangChain_Ollama.py](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py ":include :type=code")
 
 这个案例是本章最核心的代码落地点。  
 它对应的是：
@@ -653,4 +749,4 @@ ChatOllama(
 - 本章的实践主线有两条：第一条是 **安装与模型管理**，包括下载 Ollama、规划模型目录、理解 `OLLAMA_MODELS`、掌握 `pull / run / list / rm / ps` 等常用命令；第二条是 **LangChain 接入**，也就是用 `ChatOllama` 把本地模型纳入与云端模型一致的编程方式中，继续使用 `invoke()`、消息列表和 `AIMessage` 这套统一抽象。
 - 本章更重要的不是死记所有命令，而是建立一个完整认知：**Ollama 负责把模型跑在本地，LangChain 负责把本地模型接进代码和应用流程里。** 理解这一点之后，后面的 Prompt、LCEL、Agent、RAG 都可以继续在本地模型上练习。
 
-**建议下一步：** 先亲手完成这条最小链路：安装 Ollama → `ollama run qwen:4b` 跑通一次本地模型 → 用 [LangChain_Ollama.py](cases-langchain/03-ollama/LangChain_Ollama.ts) 在 Python 里调通本机模型。跑通之后，再进入 [第 13 章 提示词与消息模板](13-提示词与消息模板.md)、[第 14 章 输出解析器](14-输出解析器.md)、[第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md)，把本地模型也串进完整的 LangChain 工作流里。
+**建议下一步：** 先亲手完成这条最小链路：安装 Ollama → `ollama run qwen:4b` 跑通一次本地模型 → 用 [LangChain_Ollama.py](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py) 在 Python 里调通本机模型。跑通之后，再进入 [第 13 章 提示词与消息模板](13-提示词与消息模板.md)、[第 14 章 输出解析器](14-输出解析器.md)、[第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md)，把本地模型也串进完整的 LangChain 工作流里。

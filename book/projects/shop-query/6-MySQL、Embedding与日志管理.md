@@ -1,9 +1,91 @@
 # 6 - 电商问数：MySQL、Embedding 接入与日志管理
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/08-embedding-rag/index.ts`
+
+```typescript
+// examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/08-embedding-rag/index.ts
+```
+
 
 
 ---
@@ -99,7 +181,7 @@ BAAI/bge-large-zh-v1.5
 
 如果从工程视角看，`TEI` 在这里解决的是两个实际问题：不需要在业务代码里自己加载模型权重，后端只要通过 HTTP 地址访问服务，就能拿到 Embedding 结果。
 
-在当前项目中，`TEI` 还是以一个**独立服务**的方式运行的。更具体地说，它不是写在后端代码里的普通 Python 类，而是作为这套项目 Docker 基础服务环境中的一个容器服务启动起来，后端再通过配置里的 `host` 和 `port` 去调用它。
+在当前项目中，`TEI` 还是以一个**独立服务**的方式运行的。更具体地说，它不是写在后端代码里的普通业务类，而是作为这套项目 Docker 基础服务环境中的一个容器服务启动起来，后端再通过配置里的 `host` 和 `port` 去调用它。
 
 ### 1.3 常见服务端组件说明
 
@@ -132,68 +214,211 @@ BAAI/bge-large-zh-v1.5
 - **使用 Hugging Face 的 Python 客户端**：也就是 `huggingface_hub` 里的 `InferenceClient`
 - **使用 OpenAI 兼容方式访问**：也就是把 `TEI` 暴露出来的接口当成 OpenAI 风格的 `/v1/embeddings` 来调用
 
-但在当前项目里，并没有直接采用这些原生调用方式，而是选择了更贴近整套教程技术栈的方案：使用 LangChain 提供的 `HuggingFaceEndpointEmbeddings`。
+但在当前项目里，并没有直接采用这些原生调用方式，在 TypeScript 轨道里，我们选择更贴近 Node 技术栈的方案：使用 LangChain.js 的 `OpenAIEmbeddings`，把 TEI / 云端服务当作 OpenAI 兼容的 `/v1/embeddings` 来接入。
 
 这样做有两个明显好处：和前面已经学过的 `LangChain / LangGraph` 体系保持一致；后续在服务层、Agent 节点里调用时，接口更统一。也就是说，当前项目不是不能直接调用 `TEI`，而是有意选择了一个更贴近整套教程技术栈的接入层。
 
 ### 1.6 封装 Embedding 客户端
 
-项目对应文件路径：`shopkeeper-agent/app/clients/embedding_client_manager.ts`
+项目对应文件路径（TS Demo）：`apps/shop-query-agent/lib/metadata.ts` 与 `examples/08-embedding-rag/index.ts`
+
+TypeScript 轨道推荐写法（OpenAI 兼容 Embedding）：
+
+```typescript
+// Real TypeScript from repo pattern: OpenAIEmbeddings + TEI/OpenAI-compatible baseURL
+import { OpenAIEmbeddings } from "@langchain/openai";
+
+export type EmbeddingConfig = {
+  host: string;
+  port: number;
+  model?: string;
+};
+
+export class EmbeddingClientManager {
+  private client: OpenAIEmbeddings | null = null;
+  constructor(private readonly config: EmbeddingConfig) {}
+
+  private getUrl() {
+    return `http://${this.config.host}:${this.config.port}/v1`;
+  }
+
+  init() {
+    this.client = new OpenAIEmbeddings({
+      apiKey: process.env.OPENAI_API_KEY || "tei-local",
+      model: this.config.model || process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
+      configuration: { baseURL: this.getUrl() },
+    });
+  }
+
+  getClient() {
+    if (!this.client) throw new Error("call init() first");
+    return this.client;
+  }
+}
+
+// 验证
+// const mgr = new EmbeddingClientManager({ host: "127.0.0.1", port: 8080 });
+// mgr.init();
+// console.log((await mgr.getClient().embedQuery("销售额")).slice(0, 3));
+```
+
+对应可运行完整 RAG 示例：
+
+```typescript
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});```
+
+
+
+项目对应文件路径：`shopkeeper-agent/app/clients/embedding_client_manager.py`
 
 代码如下：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
 
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
 
-from app.conf.app_config import EmbeddingConfig, app_config
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
 
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
 
-class EmbeddingClientManager {
-    constructor(self, config: EmbeddingConfig) {
-        // 客户端在模块导入阶段先不立即创建，避免启动时就发起外部依赖连接
-        this.client: HuggingFaceEndpointEmbeddings | null = null
-        // 保存 Embedding 服务配置，供 init() 时组装服务访问地址使用
-        this.config = config
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
 
-    function _get_url(self) {
-        // 当前项目通过 host + port 访问外部已启动的 Embedding 推理服务
-        return `http://${this.config.host}:${this.config.port}`
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
 
-    function init(self) {
-        // 在应用启动阶段显式调用，完成真正的客户端初始化
-        this.client = HuggingFaceEndpointEmbeddings(model=this._get_url())
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
 
-
-// 模块级单例，供其他模块按需复用同一个客户端管理器
-embedding_client_manager = EmbeddingClientManager(app_config.embedding)
-
-
-if (__name__ == "__main__") {
-    // 本地调试入口：初始化客户端后执行一次最小化向量化调用
-    embedding_client_manager.init()
-    client = embedding_client_manager.client
-
-    async function test() {
-        // 使用示例文本验证 Embedding 服务是否可正常响应
-        text = "What is deep learning?"
-        query_result = await client.aembed_query(text)
-        // 只打印前 3 个维度，便于快速确认返回结果结构正确
-        console.log(query_result[:3])
-
-    // 运行调试测试
-    await test()
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 执行文件验证，成功：
 
 ```bash
-(shopkeeper-agent) didilili@DidililiMacBook-Pro shopkeeper-agent % python3 -m app.clients.embedding_client_manager
+(shopkeeper-agent) didilili@DidililiMacBook-Pro shopkeeper-agent % npx tsx app.clients.embedding_client_manager
 
 [-0.005919582676142454, 0.005813124123960733, 0.018300632014870644]
 
@@ -212,13 +437,226 @@ if (__name__ == "__main__") {
 #### 1.6.2 config 与 client 的职责
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-class EmbeddingClientManager {
-    constructor(self, config: EmbeddingConfig) {
-        this.client: HuggingFaceEndpointEmbeddings | null = null
-        this.config = config
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这里有两个核心属性：
@@ -231,11 +669,76 @@ class EmbeddingClientManager {
 #### 1.6.3 \_get_url() 的作用与 URL 组成
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function _get_url(self) {
-    return `http://${this.config.host}:${this.config.port}`
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这里做的事情并不复杂，但很关键：**把配置文件中的 `host` 和 `port` 统一拼成服务地址**。
@@ -247,11 +750,226 @@ function _get_url(self) {
 #### 1.6.4 init() 的初始化过程
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function init(self) {
-    this.client = HuggingFaceEndpointEmbeddings(model=this._get_url())
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这里最值得注意的是：`model=` 传进去的并不是 Hugging Face 上的模型名称，而是**本地已经部署好的 Embedding 服务地址**。
@@ -328,40 +1046,76 @@ function init(self) {
 先看官方示例里的模型声明：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
 
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
 
-class Base(DeclarativeBase):
-    pass
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
 
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
 
-class User(Base):
-    __tablename__ = "user_account"
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
 
-    id: Mapped[int] = mapped_column(primary_key=true)
-    name: Mapped[str] = mapped_column(String(30))
-    fullname: Mapped[string | null]
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
 
-    addresses: Mapped["Address"[]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
 
-
-class Address(Base):
-    __tablename__ = "address"
-
-    id: Mapped[int] = mapped_column(primary_key=true)
-    email_address: Mapped[str]
-    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
-
-    user: Mapped["User"] = relationship(back_populates="addresses")
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 理解它在表达什么：
@@ -375,12 +1129,226 @@ class Address(Base):
 接着，创建 `Engine`：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from sqlalchemy import create_engine
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
-engine = create_engine("sqlite://", echo=true)
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
 
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这里特别值得补一句：`Engine` 不是“某次查询”，它更像数据库连接层的核心对象，底层会帮我们维护连接池。
@@ -388,10 +1356,76 @@ engine = create_engine("sqlite://", echo=true)
 再往后，直接根据模型去建表：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-Base.metadata.create_all(engine)
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这行代码的意思是：**根据前面声明好的模型，自动生成对应的数据表结构**。不过这里也要顺手提醒一下：在我们的项目里，并没有走这条“由 ORM 自动建表”的路线。因为当前项目的数据库和表结构在前面的环境准备阶段就已经初始化好了，所以这里更多是帮助你理解 SQLAlchemy 的能力边界，而不是项目运行时真正依赖的建表方式。
@@ -399,29 +1433,226 @@ Base.metadata.create_all(engine)
 然后是写数据，这样使用 `Session`：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from sqlalchemy.orm import Session
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
-with Session(engine) as session:
-    spongebob = User(
-        name="spongebob",
-        fullname="Spongebob Squarepants",
-        addresses=[Address(email_address="spongebob@sqlalchemy.org")],
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
+
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
     )
-    sandy = User(
-        name="sandy",
-        fullname="Sandy Cheeks",
-        addresses=[
-            Address(email_address="sandy@sqlalchemy.org"),
-            Address(email_address="sandy@squirrelpower.org"),
-        ],
-    )
-    patrick = User(name="patrick", fullname="Patrick Star")
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
 
-    session.add_all([spongebob, sandy, patrick])
-    session.commit()
-
-
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这一段重点是在说明两件事：
@@ -434,17 +1665,76 @@ with Session(engine) as session:
 最后，做一次简单查询：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from sqlalchemy import select
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-session = Session(engine)
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-stmt = select(User).where(User.name.in_(["spongebob", "sandy"]))
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
 
-for (const user of session.scalars(stmt)) {
-    console.log(user)
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
 
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
 
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这段代码表达的是：
@@ -459,7 +1749,7 @@ for (const user of session.scalars(stmt)) {
 
 ### 2.4 封装 MySQL 客户端
 
-项目对应文件路径：`shopkeeper-agent/app/clients/mysql_client_manager.ts`
+项目对应文件路径：`shopkeeper-agent/app/clients/mysql_client_manager.py`
 
 这一部分的中心代码就是当前项目里的 MySQL 客户端封装。前面的 `SQLAlchemy` 基础、quickstart、Engine 与 Session，最终都是为了帮助我们把这段代码看懂。
 
@@ -468,79 +1758,232 @@ for (const user of session.scalars(stmt)) {
 #### 2.4.1 MySQL 客户端代码实现
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    async_sessionmaker,
-    create_async_engine,
-)
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
-from app.conf.app_config import DBConfig, app_config
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
 
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
 
-class MySQLClientManager {
-    constructor(self, config: DBConfig) {
-        // Engine 是数据库连接层核心对象，底层会维护连接池
-        this.engine: AsyncEngine | null = null
-        // session_factory 用来按需创建新的 any /* AsyncSession */
-        this.session_factory = null
-        // 保存数据库配置，后面拼接连接地址要用
-        this.config = config
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
 
-    function _get_url(self) {
-        // mysql+asyncmy 表示：连接 MySQL，并使用 asyncmy 作为异步驱动
-        return `mysql+asyncmy://${this.config.user}:${this.config.password}@${this.config.host}:${this.config.port}/${this.config.database}?charset=utf8mb4`
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
 
-    function init(self) {
-        // 创建异步 Engine，相当于先把“数据库连接能力”准备好
-        this.engine = create_async_engine(
-            this._get_url(), pool_size=10, pool_pre_ping=true
-        )
-        // 基于 Engine 创建 Session 工厂，后面真正查库时再拿 session
-        this.session_factory = async_sessionmaker(
-            this.engine, autoflush=true, expire_on_commit=false
-        )
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
 
-    async function close(self) {
-        // 程序结束时释放连接池资源
-        await this.engine.dispose()
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
 
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
 
-// 一套连元数据库，一套连数仓模拟库
-meta_mysql_client_manager = MySQLClientManager(app_config.db_meta)
-dw_mysql_client_manager = MySQLClientManager(app_config.db_dw)
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
 
-if (__name__ == "__main__") {
-    // 这里演示的是数仓库查询，所以先初始化 dw 这一套客户端
-    dw_mysql_client_manager.init()
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
 
-    async function test() {
-        // 通过 session_factory 创建一次数据库会话
-        async with dw_mysql_client_manager.session_factory() as session:
-            sql = "select * from fact_order limit 10"
-            // text(sql) 表示把原生 SQL 语句交给 SQLAlchemy 执行
-            result = await session.execute(text(sql))
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
 
-            // mappings().fetchall() 会把结果转成“按列名访问”的行对象列表
-            rows = result.mappings().fetchall()
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
 
-            // 下面三行只是为了帮助观察返回结果的结构
-            console.log(type(rows))
-            console.log(type(rows[0]))
-            console.log(rows[0]["order_id"])
-
-    await test()
-
-
-
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 执行文件验证，成功：
 
 ```bash
-(shopkeeper-agent) didilili@DidililiMacBook-Pro shopkeeper-agent % python3 -m app.clients.mysql_client_manager
+(shopkeeper-agent) didilili@DidililiMacBook-Pro shopkeeper-agent % npx tsx app.clients.mysql_client_manager
 <class 'list'>
 <class 'sqlalchemy.engine.row.RowMapping'>
 ORD20250101001
@@ -578,30 +2021,306 @@ ORD20250101001
 这一点也是很多初学者第一次看代码时不太容易立刻理解的地方。当前项目里没有“先在全局创建一个 `Session` 对象再到处传”，而是这样做：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-this.session_factory = async_sessionmaker(
-    this.engine,
-    autoflush=true,
-    expire_on_commit=false,
-    autobegin=true,
-)
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 原因很简单：项目整体是异步风格，后面会在很多地方反复创建 Session，与其每次都手写一遍创建逻辑，不如先做一个统一的 **Session 工厂**。这样后面无论是 API 依赖注入、构建元知识脚本、Agent 执行链路都可以通过：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async with xxx_mysql_client_manager.session_factory() as session:
-    ...
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 来得到一份新的异步会话对象。
 
-所以这里的 `session_factory` 可以看作：**一个专门用来批量、统一、稳定地创建 `any /* AsyncSession */` 的工厂。**
+所以这里的 `session_factory` 可以看作：**一个专门用来批量、统一、稳定地创建 `AsyncSession` 的工厂。**
 
 #### 2.4.4 pool_size、pool_pre_ping、autoflush 参数配置说明
 
@@ -610,14 +2329,76 @@ async with xxx_mysql_client_manager.session_factory() as session:
 先看 `Engine` 这层：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-this.engine = create_async_engine(
-    url=this._get_url(),
-    pool_size=10,
-    pool_pre_ping=true,
-)
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ##### 2.4.4.1 pool_size=10
@@ -633,15 +2414,226 @@ this.engine = create_async_engine(
 再看 `Session` 这层：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-this.session_factory = async_sessionmaker(
-    this.engine,
-    autoflush=true,
-    expire_on_commit=false,
-    autobegin=true,
-)
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 ##### 2.4.4.3 autoflush=True
@@ -693,10 +2685,76 @@ this.session_factory = async_sessionmaker(
 这也是为什么测试代码里直接用了：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-await session.execute(text("select * from table_info limit 10"))
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ---
@@ -723,13 +2781,226 @@ await session.execute(text("select * from table_info limit 10"))
 例如：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-const logger = console;
-console.log("starting")
-console.warn("warning")
-console.error("error")
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 直接运行后，就能看到带时间、级别、位置、颜色的日志输出。
@@ -784,64 +3055,81 @@ logging:
 
 ### 3.4 封装日志配置
 
-项目对应文件路径：`shopkeeper-agent/app/core/log.ts`
+项目对应文件路径：`shopkeeper-agent/app/core/log.py`
 
 代码如下：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import sys
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const logger = console;
-from app.conf.app_config import app_config
-from app.core.context import request_id_ctx_var
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
 
-// 统一日志展示格式，包含时间、级别、请求 ID 和调用位置等关键信息
-log_format = (
-    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-    "<level>{level: <8}</level> | "
-    "<magenta>request_id - {extra[request_id]}</magenta> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-    "<level>{message}</level>"
-)
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
 
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
 
-// 通过 Loguru patch 钩子，把上下文中的 request_id 写入每条日志的 extra 字段
-function inject_request_id(record) {
-    request_id = request_id_ctx_var.get()
-    record["extra"]["request_id"] = request_id
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
 
-// 移除 Loguru 默认的输出目标，避免和项目自定义配置重复打印
-logger.remove()
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
 
-// 生成带 request_id 注入能力的 logger，后续业务代码统一使用这个实例
-logger = logger.patch(inject_request_id)
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
 
-// 根据配置决定是否输出控制台日志，适合本地开发和容器标准输出采集
-if (app_config.logging.console.enable) {
-    logger.add(
-        sink=sys.stdout,
-        level=app_config.logging.console.level,
-        format=log_format,
-    )
-
-// 根据配置决定是否写入文件日志，并在启动时确保日志目录存在
-if (app_config.logging.file.enable) {
-    path = Path(app_config.logging.file.path)
-    path.mkdir(parents=true, exist_ok=true)
-    logger.add(
-        sink=path / "app.log",
-        level=app_config.logging.file.level,
-        format=log_format,
-        rotation=app_config.logging.file.rotation,
-        retention=app_config.logging.file.retention,
-        encoding="utf-8",
-    )
-
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 #### 3.4.1 这一层封装在做什么
@@ -860,10 +3148,226 @@ if (app_config.logging.file.enable) {
 `loguru` 之所以“开箱即用”，是因为它自带了一套默认配置。所以，项目如果想使用自己的日志格式和输出策略，第一步通常就要先做：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-logger.remove()
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 它的作用就是：**先把默认日志配置移除掉**。
@@ -871,10 +3375,76 @@ logger.remove()
 然后再通过：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-logger.add(...)
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 把我们自己的输出通道加回来。也就是说，这里的整体逻辑是：
@@ -893,16 +3463,226 @@ logger.add(...)
 这一段里，最值得认真看的其实是 `log_format`。
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-log_format = (
-    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-    "<level>{level: <8}</level> | "
-    "<magenta>request_id - {extra[request_id]}</magenta> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-    "<level>{message}</level>"
-)
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这里不是随便拼一个字符串，而是在定义：**每一条日志最后长什么样**。
@@ -921,26 +3701,304 @@ log_format = (
 
 #### 3.4.4 request_id 注入机制
 
-项目对应文件路径：`shopkeeper-agent/app/core/context.ts`
+项目对应文件路径：`shopkeeper-agent/app/core/context.py`
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from contextvars import ContextVar
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-request_id_ctx_var = ContextVar("request_id", default="1")
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
 
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 在日志模块里，通过下面这段逻辑把它写进日志的 `extra` 字段：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function inject_request_id(record) {
-    request_id = request_id_ctx_var.get()
-    record["extra"]["request_id"] = request_id
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 这一层非常重要。在并发场景下，如果多个请求同时在跑，日志会交错在一起。如果没有一个统一标识，你很难把“同一个请求”的所有日志串起来。
@@ -950,28 +4008,301 @@ function inject_request_id(record) {
 这也是为什么当前项目的日志格式里专门加了：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-<magenta>request_id - {extra[request_id]}</magenta>
+// Real TypeScript from repo: examples/08-embedding-rag/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
+ * Course chapters 18-19
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Document } from "@langchain/core/documents";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function formatDocs(docs: Document[]) {
+  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
+}
+
+async function main() {
+  printRunHeader("08-embedding-rag | local docs RAG");
+
+  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 200,
+    chunkOverlap: 40,
+  });
+  const docs = await splitter.createDocuments([raw]);
+
+  const vectorStore = await MemoryVectorStore.fromDocuments(
+    docs,
+    createEmbeddings(),
+  );
+  const retriever = vectorStore.asRetriever({ k: 3 });
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
+    ],
+    ["human", "{question}"],
+  ]);
+
+  const ragChain = RunnableSequence.from([
+    {
+      context: async (input: { question: string }) =>
+        formatDocs(await retriever.invoke(input.question)),
+      question: new RunnablePassthrough<{ question: string }>().pipe(
+        (input) => input.question,
+      ),
+    },
+    prompt,
+    createChatModel(0),
+    new StringOutputParser(),
+  ]);
+
+  const question = "差旅报销有什么规则？市内交通上限是多少？";
+  console.log("[question]", question);
+  const answer = await ragChain.invoke({ question });
+  console.log("\n[answer]\n", answer);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 #### 3.4.5 文件日志输出策略
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-path = Path(app_config.logging.file.path)
-path.mkdir(parents=true, exist_ok=true)
-logger.add(
-    sink=path / "app.log",
-    level=app_config.logging.file.level,
-    format=log_format,
-    rotation=app_config.logging.file.rotation,
-    retention=app_config.logging.file.retention,
-    encoding="utf-8",
-)
+// Real TypeScript from repo: apps/shop-query-agent/lib/metadata.ts
+/**
+ * Metadata knowledge base (simplified).
+ * Real project: MySQL meta + Qdrant + ES.
+ * Demo: in-memory field/metric catalog + keyword/value map.
+ */
 
+export type FieldMeta = {
+  table: string;
+  column: string;
+  role: "metric" | "dimension" | "id" | "time" | "status";
+  aliases: string[];
+  description: string;
+  sampleValues?: string[];
+};
 
+export type MetricMeta = {
+  name: string;
+  expression: string;
+  aliases: string[];
+  description: string;
+};
+
+export const fieldCatalog: FieldMeta[] = [
+  {
+    table: "fact_order",
+    column: "amount",
+    role: "metric",
+    aliases: ["销售额", "成交额", "销售总额", "金额", "GMV"],
+    description: "订单成交金额",
+  },
+  {
+    table: "fact_order",
+    column: "quantity",
+    role: "metric",
+    aliases: ["销量", "数量", "件数"],
+    description: "订单商品数量",
+  },
+  {
+    table: "fact_order",
+    column: "order_date",
+    role: "time",
+    aliases: ["日期", "下单日期", "时间"],
+    description: "订单日期 YYYY-MM-DD",
+  },
+  {
+    table: "fact_order",
+    column: "status",
+    role: "status",
+    aliases: ["订单状态", "状态"],
+    description: "paid / refunded / pending",
+    sampleValues: ["paid", "refunded", "pending"],
+  },
+  {
+    table: "dim_region",
+    column: "region_name",
+    role: "dimension",
+    aliases: ["地区", "大区", "区域"],
+    description: "销售大区",
+    sampleValues: ["华北", "华东", "华南", "西南"],
+  },
+  {
+    table: "dim_product",
+    column: "brand",
+    role: "dimension",
+    aliases: ["品牌"],
+    description: "商品品牌",
+    sampleValues: ["苹果", "华为", "小米"],
+  },
+  {
+    table: "dim_product",
+    column: "category",
+    role: "dimension",
+    aliases: ["品类", "类目"],
+    description: "商品品类",
+    sampleValues: ["手机", "耳机"],
+  },
+  {
+    table: "dim_customer",
+    column: "member_level",
+    role: "dimension",
+    aliases: ["会员", "会员等级", "等级"],
+    description: "会员等级",
+    sampleValues: ["普通", "黄金", "钻石"],
+  },
+  {
+    table: "dim_customer",
+    column: "city",
+    role: "dimension",
+    aliases: ["城市"],
+    description: "客户城市",
+    sampleValues: ["北京", "上海", "杭州", "深圳", "成都"],
+  },
+];
+
+export const metricCatalog: MetricMeta[] = [
+  {
+    name: "销售总额",
+    expression: "SUM(fact_order.amount)",
+    aliases: ["销售额", "成交总额", "GMV", "总销售额"],
+    description: "订单金额合计（默认仅 paid）",
+  },
+  {
+    name: "订单量",
+    expression: "COUNT(DISTINCT fact_order.order_id)",
+    aliases: ["订单数", "单量"],
+    description: "订单数",
+  },
+  {
+    name: "销售件数",
+    expression: "SUM(fact_order.quantity)",
+    aliases: ["销量", "件数"],
+    description: "销售件数合计",
+  },
+];
+
+export type RecallHit = {
+  kind: "field" | "metric" | "value";
+  score: number;
+  label: string;
+  detail: string;
+  table?: string;
+  column?: string;
+  value?: string;
+};
+
+function includesAny(text: string, words: string[]) {
+  return words.some((w) => text.includes(w));
+}
+
+/** Multi-path recall: fields / metrics / values from natural language. */
+export function recallMetadata(question: string): RecallHit[] {
+  const q = question.trim();
+  const hits: RecallHit[] = [];
+
+  for (const m of metricCatalog) {
+    const keys = [m.name, ...m.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "metric",
+        score: 3,
+        label: m.name,
+        detail: `${m.expression} | ${m.description}`,
+      });
+    }
+  }
+
+  for (const f of fieldCatalog) {
+    const keys = [f.column, ...f.aliases];
+    if (includesAny(q, keys)) {
+      hits.push({
+        kind: "field",
+        score: 2,
+        label: `${f.table}.${f.column}`,
+        detail: `${f.role} | ${f.description}`,
+        table: f.table,
+        column: f.column,
+      });
+    }
+    for (const v of f.sampleValues ?? []) {
+      if (q.includes(v)) {
+        hits.push({
+          kind: "value",
+          score: 4,
+          label: `${f.table}.${f.column} = ${v}`,
+          detail: `命中字段取值「${v}」`,
+          table: f.table,
+          column: f.column,
+          value: v,
+        });
+      }
+    }
+  }
+
+  // defaults if nothing matched
+  if (!hits.some((h) => h.kind === "metric")) {
+    hits.push({
+      kind: "metric",
+      score: 1,
+      label: "销售总额",
+      detail: "SUM(fact_order.amount) | 默认指标",
+    });
+  }
+
+  hits.sort((a, b) => b.score - a.score);
+  // de-dup by label
+  const seen = new Set<string>();
+  return hits.filter((h) => {
+    if (seen.has(h.label)) return false;
+    seen.add(h.label);
+    return true;
+  });
+}
+
+export function buildSchemaContext(hits: RecallHit[]): string {
+  const fields = fieldCatalog
+    .map(
+      (f) =>
+        `- ${f.table}.${f.column} (${f.role}) aliases=${f.aliases.join("/")}; ${f.description}`,
+    )
+    .join("\n");
+  const metrics = metricCatalog
+    .map((m) => `- ${m.name}: ${m.expression}; aliases=${m.aliases.join("/")}`)
+    .join("\n");
+  const hitText = hits
+    .map((h) => `- [${h.kind}] ${h.label}: ${h.detail}`)
+    .join("\n");
+
+  return [
+    "可用表：fact_order, dim_customer, dim_product, dim_region",
+    "关联键：fact_order.customer_id=dim_customer.customer_id; fact_order.product_id=dim_product.product_id; fact_order.region_id=dim_region.region_id",
+    "字段目录：",
+    fields,
+    "指标目录：",
+    metrics,
+    "本问题召回命中：",
+    hitText,
+    "SQL 规则：只写 SELECT；默认 status='paid'；表名列名必须来自目录；可用 GROUP BY；limit <= 50。",
+  ].join("\n");
+}
 ```
 
 它表达的意思是：

@@ -1,9 +1,65 @@
 # 24 - LangGraph API：节点、边与进阶
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`book/cases-langgraph/04-node/DefNode.ts`
+
+```typescript
+// book/cases-langgraph/04-node/DefNode.ts
+/**
+ * 【精校可运行】Node 定义：接收 state，返回部分更新（第 24 章）
+ * 原 Python: DefNode.py 教学意图
+ *
+ *   npx tsx book/cases-langgraph/04-node/DefNode.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+
+const NodeState = Annotation.Root({
+  name: Annotation<string>,
+  greeting: Annotation<string>,
+  upper: Annotation<string>,
+});
+
+function makeGreeting(state: typeof NodeState.State) {
+  return { greeting: `Hello, ${state.name}` };
+}
+
+function toUpper(state: typeof NodeState.State) {
+  return { upper: state.greeting.toUpperCase() };
+}
+
+async function main() {
+  const app = new StateGraph(NodeState)
+    .addNode("make_greeting", makeGreeting)
+    .addNode("to_upper", toUpper)
+    .addEdge(START, "make_greeting")
+    .addEdge("make_greeting", "to_upper")
+    .addEdge("to_upper", END)
+    .compile();
+
+  const result = await app.invoke({
+    name: "LangGraph",
+    greeting: "",
+    upper: "",
+  });
+  console.log(result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx book/cases-langgraph/04-node/DefNode.ts
+```
+
 
 
 ---
@@ -25,7 +81,7 @@
 
 ### 1.1 定义
 
-在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 TypeScript 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
+在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 Python 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
 
 如果说 [第 23 章](23-LangGraphAPI：图与状态.md) 重点在讲“图里有哪些共享状态”，那本章开始讲的 Node，重点就在讲：**状态到了某一站之后，要做什么处理。**
 
@@ -64,11 +120,50 @@ Node 是图真正“干活”的地方。前面学过的 Graph、State、Reducer
 最常见的节点先从这一种开始记：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function node(state: MyState): dict {
-    return {"some_key": "new_value"}
+// Real TypeScript from repo: book/cases-langgraph/04-node/DefNode.ts
+/**
+ * 【精校可运行】Node 定义：接收 state，返回部分更新（第 24 章）
+ * 原 Python: DefNode.py 教学意图
+ *
+ *   npx tsx book/cases-langgraph/04-node/DefNode.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const NodeState = Annotation.Root({
+  name: Annotation<string>,
+  greeting: Annotation<string>,
+  upper: Annotation<string>,
+});
 
+function makeGreeting(state: typeof NodeState.State) {
+  return { greeting: `Hello, ${state.name}` };
+}
+
+function toUpper(state: typeof NodeState.State) {
+  return { upper: state.greeting.toUpperCase() };
+}
+
+async function main() {
+  const app = new StateGraph(NodeState)
+    .addNode("make_greeting", makeGreeting)
+    .addNode("to_upper", toUpper)
+    .addEdge(START, "make_greeting")
+    .addEdge("make_greeting", "to_upper")
+    .addEdge("to_upper", END)
+    .compile();
+
+  const result = await app.invoke({
+    name: "LangGraph",
+    greeting: "",
+    upper: "",
+  });
+  console.log(result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这也是初学者最该先掌握的形态：**读 state，返回局部更新 dict。**
@@ -98,11 +193,63 @@ function node(state: MyState): dict {
 所以更推荐的写法是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function node(state: MyState): dict {
-    return {"result": "new_value"}
+// Real TypeScript from repo: book/cases-langgraph/05-edge/Edge_Conditional.ts
+/**
+ * 【精校可运行】条件边：奇偶分流（第 24 章）
+ * 原 Python: Edge_Conditional.py
+ *
+ *   npx tsx book/cases-langgraph/05-edge/Edge_Conditional.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const MyState = Annotation.Root({
+  x: Annotation<number>,
+  result: Annotation<string | undefined>,
+});
 
+function checkX(state: typeof MyState.State) {
+  console.log("[check_x] Received", state);
+  return {};
+}
+
+function isEven(state: typeof MyState.State) {
+  return state.x % 2 === 0 ? "handle_even" : "handle_odd";
+}
+
+function handleEven(state: typeof MyState.State) {
+  console.log("[handle_even] x 是偶数");
+  return { result: "even" };
+}
+
+function handleOdd(state: typeof MyState.State) {
+  console.log("[handle_odd] x 是奇数");
+  return { result: "odd" };
+}
+
+async function main() {
+  const app = new StateGraph(MyState)
+    .addNode("check_x", checkX)
+    .addNode("handle_even", handleEven)
+    .addNode("handle_odd", handleOdd)
+    .addEdge(START, "check_x")
+    .addConditionalEdges("check_x", isEven, {
+      handle_even: "handle_even",
+      handle_odd: "handle_odd",
+    })
+    .addEdge("handle_even", END)
+    .addEdge("handle_odd", END)
+    .compile();
+
+  for (const x of [2, 3]) {
+    const result = await app.invoke({ x, result: undefined });
+    console.log(`x=${x} =>`, result);
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 而不推荐把整份 `state` 直接修改后再整体 return。因为那样很容易带来两个问题：
@@ -115,12 +262,61 @@ function node(state: MyState): dict {
 从代码习惯上看，下面这种写法要尽量避免：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function query_web(state: MyState): dict {
-    state["web_result"] = "网络搜索结果"
-    return state
+// Real TypeScript from repo: book/cases-langgraph/05-edge/Edge_ConditionalV2.ts
+/**
+ * 【精校可运行】条件边：字符串路由键 + 多分支入口（第 24 章）
+ * 原 Python: Edge_ConditionalV2.py
+ *
+ *   npx tsx book/cases-langgraph/05-edge/Edge_ConditionalV2.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const DiliState = Annotation.Root({
+  x: Annotation<number>,
+});
 
+function addition1(state: typeof DiliState.State) {
+  console.log("addition1 收到:", state);
+  return { x: state.x + 1 };
+}
+function addition2(state: typeof DiliState.State) {
+  console.log("addition2 收到:", state);
+  return { x: state.x + 2 };
+}
+function addition3(state: typeof DiliState.State) {
+  console.log("addition3 收到:", state);
+  return { x: state.x + 3 };
+}
+
+function routeByX(state: typeof DiliState.State) {
+  if (state.x === 1) return "condition_1";
+  if (state.x === 2) return "condition_2";
+  return "condition_3";
+}
+
+async function main() {
+  const app = new StateGraph(DiliState)
+    .addNode("node1", addition1)
+    .addNode("node2", addition2)
+    .addNode("node3", addition3)
+    .addConditionalEdges(START, routeByX, {
+      condition_1: "node1",
+      condition_2: "node2",
+      condition_3: "node3",
+    })
+    .addEdge("node1", END)
+    .addEdge("node2", END)
+    .addEdge("node3", END)
+    .compile();
+
+  const result = await app.invoke({ x: 3 });
+  console.log("最后的结果是:", result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 它看起来省事，但问题是：调用者很难判断这个节点到底负责改哪些字段；如果 State 里有 `messages`、`retrieved_docs` 这类带 Reducer 的字段，整份返回还可能导致重复合并或覆盖误伤。
@@ -128,11 +324,50 @@ function query_web(state: MyState): dict {
 更推荐的写法是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-function query_web(state: MyState): dict {
-    return {"web_result": "网络搜索结果"}
+// Real TypeScript from repo: book/cases-langgraph/04-node/DefNode.ts
+/**
+ * 【精校可运行】Node 定义：接收 state，返回部分更新（第 24 章）
+ * 原 Python: DefNode.py 教学意图
+ *
+ *   npx tsx book/cases-langgraph/04-node/DefNode.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const NodeState = Annotation.Root({
+  name: Annotation<string>,
+  greeting: Annotation<string>,
+  upper: Annotation<string>,
+});
 
+function makeGreeting(state: typeof NodeState.State) {
+  return { greeting: `Hello, ${state.name}` };
+}
+
+function toUpper(state: typeof NodeState.State) {
+  return { upper: state.greeting.toUpperCase() };
+}
+
+async function main() {
+  const app = new StateGraph(NodeState)
+    .addNode("make_greeting", makeGreeting)
+    .addNode("to_upper", toUpper)
+    .addEdge(START, "make_greeting")
+    .addEdge("make_greeting", "to_upper")
+    .addEdge("to_upper", END)
+    .compile();
+
+  const result = await app.invoke({
+    name: "LangGraph",
+    greeting: "",
+    upper: "",
+  });
+  console.log(result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 **节点函数内部可以读完整 State，但离开节点时只交出自己的增量更新。** 这条规则和上一章的 Reducer 是一体的：节点负责产出更新，Reducer 负责合并更新。
@@ -147,11 +382,63 @@ function query_web(state: MyState): dict {
 最常见的写法是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-graph.add_edge(START, "node_a")
-graph.add_edge("node_a", END)
+// Real TypeScript from repo: book/cases-langgraph/05-edge/Edge_Conditional.ts
+/**
+ * 【精校可运行】条件边：奇偶分流（第 24 章）
+ * 原 Python: Edge_Conditional.py
+ *
+ *   npx tsx book/cases-langgraph/05-edge/Edge_Conditional.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const MyState = Annotation.Root({
+  x: Annotation<number>,
+  result: Annotation<string | undefined>,
+});
 
+function checkX(state: typeof MyState.State) {
+  console.log("[check_x] Received", state);
+  return {};
+}
+
+function isEven(state: typeof MyState.State) {
+  return state.x % 2 === 0 ? "handle_even" : "handle_odd";
+}
+
+function handleEven(state: typeof MyState.State) {
+  console.log("[handle_even] x 是偶数");
+  return { result: "even" };
+}
+
+function handleOdd(state: typeof MyState.State) {
+  console.log("[handle_odd] x 是奇数");
+  return { result: "odd" };
+}
+
+async function main() {
+  const app = new StateGraph(MyState)
+    .addNode("check_x", checkX)
+    .addNode("handle_even", handleEven)
+    .addNode("handle_odd", handleOdd)
+    .addEdge(START, "check_x")
+    .addConditionalEdges("check_x", isEven, {
+      handle_even: "handle_even",
+      handle_odd: "handle_odd",
+    })
+    .addEdge("handle_even", END)
+    .addEdge("handle_odd", END)
+    .compile();
+
+  for (const x of [2, 3]) {
+    const result = await app.invoke({ x, result: undefined });
+    console.log(`x=${x} =>`, result);
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这表示：图从 `node_a` 开始执行，`node_a` 执行完后流程结束。
@@ -178,13 +465,13 @@ graph.add_edge("node_a", END)
 
 这个案例是第 24 章最基础、也最值得先跑通的 Node 例子。它主要演示三件事：
 
-- 节点就是 TypeScript 函数
+- 节点就是 Python 函数
 - 节点除了最基本的 `state` 参数，还可以借助 `partial` 绑定额外参数
 - `add_node(...)` 时除了传节点函数，还可以顺手挂上 `retry_policy`
 
-【案例源码】`cases-langgraph/04-node/DefNode.ts`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/DefNode.py`
 
-[DefNode.py](cases-langgraph/04-node/DefNode.ts ":include :type=code")
+[DefNode.py](案例与源码-3-LangGraph框架/04-node/DefNode.py ":include :type=code")
 
 这个案例用来建立一个基础直觉：**Node 的重点不是“函数怎么写花哨”，而是“如何被图注册、调度、配置”。**
 
@@ -225,9 +512,9 @@ LangGraph 要真正命中缓存，通常要看三层：
 
 换句话说，**节点声明“我支持缓存”，图编译时再决定“实际用什么缓存”。**
 
-【案例源码】`cases-langgraph/04-node/Node_Cache.ts`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_Cache.py`
 
-[Node_Cache.py](cases-langgraph/04-node/Node_Cache.ts ":include :type=code")
+[Node_Cache.py](案例与源码-3-LangGraph框架/04-node/Node_Cache.py ":include :type=code")
 
 ### 1.9 错误处理与重试机制
 
@@ -262,9 +549,9 @@ LangGraph 用 `RetryPolicy` 来描述这件事。官方参考文档里，`RetryP
 - 自定义 `retry_on` 时，如何只对特定异常重试
 - 哪些异常会直接失败，不会进入重试流程
 
-【案例源码】`cases-langgraph/04-node/Node_ExpErrRetry.ts`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.py`
 
-[Node_ExpErrRetry.py](cases-langgraph/04-node/Node_ExpErrRetry.ts ":include :type=code")
+[Node_ExpErrRetry.py](案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.py ":include :type=code")
 
 学完 Node 这一节后，你至少应该建立这个认识：**节点不只是“一个函数”，它还是图里的一个可配置执行单元，可以挂缓存、挂重试策略，也可以明确入口和出口。**
 
@@ -330,10 +617,61 @@ flowchart TD
 最典型的写法就是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-builder.add_edge("node_a", "node_b")
+// Real TypeScript from repo: book/cases-langgraph/05-edge/Edge_ConditionalV2.ts
+/**
+ * 【精校可运行】条件边：字符串路由键 + 多分支入口（第 24 章）
+ * 原 Python: Edge_ConditionalV2.py
+ *
+ *   npx tsx book/cases-langgraph/05-edge/Edge_ConditionalV2.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const DiliState = Annotation.Root({
+  x: Annotation<number>,
+});
 
+function addition1(state: typeof DiliState.State) {
+  console.log("addition1 收到:", state);
+  return { x: state.x + 1 };
+}
+function addition2(state: typeof DiliState.State) {
+  console.log("addition2 收到:", state);
+  return { x: state.x + 2 };
+}
+function addition3(state: typeof DiliState.State) {
+  console.log("addition3 收到:", state);
+  return { x: state.x + 3 };
+}
+
+function routeByX(state: typeof DiliState.State) {
+  if (state.x === 1) return "condition_1";
+  if (state.x === 2) return "condition_2";
+  return "condition_3";
+}
+
+async function main() {
+  const app = new StateGraph(DiliState)
+    .addNode("node1", addition1)
+    .addNode("node2", addition2)
+    .addNode("node3", addition3)
+    .addConditionalEdges(START, routeByX, {
+      condition_1: "node1",
+      condition_2: "node2",
+      condition_3: "node3",
+    })
+    .addEdge("node1", END)
+    .addEdge("node2", END)
+    .addEdge("node3", END)
+    .compile();
+
+  const result = await app.invoke({ x: 3 });
+  console.log("最后的结果是:", result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这行代码的意思很简单：`node_a` 跑完，就去 `node_b`，没有判断、没有分支。
@@ -350,9 +688,9 @@ builder.add_edge("node_a", "node_b")
 
 重点不是业务逻辑，而是看清楚：**当边是固定的，图就像一条声明式的工作流链。**
 
-【案例源码】`cases-langgraph/05-edge/Edge_Normal.ts`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Normal.py`
 
-[Edge_Normal.py](cases-langgraph/05-edge/Edge_Normal.ts ":include :type=code")
+[Edge_Normal.py](案例与源码-3-LangGraph框架/05-edge/Edge_Normal.py ":include :type=code")
 
 ### 2.5 条件边（Conditional Edges）
 
@@ -361,10 +699,50 @@ builder.add_edge("node_a", "node_b")
 LangGraph 常见写法是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-graph.add_conditional_edges("node_a", route_fn, mapping)
+// Real TypeScript from repo: book/cases-langgraph/04-node/DefNode.ts
+/**
+ * 【精校可运行】Node 定义：接收 state，返回部分更新（第 24 章）
+ * 原 Python: DefNode.py 教学意图
+ *
+ *   npx tsx book/cases-langgraph/04-node/DefNode.ts
+ */
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 
+const NodeState = Annotation.Root({
+  name: Annotation<string>,
+  greeting: Annotation<string>,
+  upper: Annotation<string>,
+});
 
+function makeGreeting(state: typeof NodeState.State) {
+  return { greeting: `Hello, ${state.name}` };
+}
+
+function toUpper(state: typeof NodeState.State) {
+  return { upper: state.greeting.toUpperCase() };
+}
+
+async function main() {
+  const app = new StateGraph(NodeState)
+    .addNode("make_greeting", makeGreeting)
+    .addNode("to_upper", toUpper)
+    .addEdge(START, "make_greeting")
+    .addEdge("make_greeting", "to_upper")
+    .addEdge("to_upper", END)
+    .compile();
+
+  const result = await app.invoke({
+    name: "LangGraph",
+    greeting: "",
+    upper: "",
+  });
+  console.log(result);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
 ```
 
 这里可以拆成三部分理解：
@@ -398,11 +776,11 @@ flowchart LR
 - 一个案例用布尔值或简单条件做分支
 - 另一个案例用字符串 key + mapping 做多分支映射
 
-【案例源码】`cases-langgraph/05-edge/Edge_Conditional.ts`、`Edge_ConditionalV2.ts`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.py`、`Edge_ConditionalV2.py`
 
-[Edge_Conditional.py](cases-langgraph/05-edge/Edge_Conditional.ts ":include :type=code")
+[Edge_Conditional.py](案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.py ":include :type=code")
 
-[Edge_ConditionalV2.py](cases-langgraph/05-edge/Edge_ConditionalV2.ts ":include :type=code")
+[Edge_ConditionalV2.py](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalV2.py ":include :type=code")
 
 ### 2.7 入口点与条件入口点
 
@@ -431,11 +809,11 @@ flowchart LR
 - 用 `set_entry_point` / `set_finish_point` 指定固定入口出口
 - 从 `START` 上直接挂条件边，按初始输入决定进入哪条处理链
 
-【案例源码】`cases-langgraph/05-edge/Edge_EntryPoint.ts`、`Edge_ConditionalEntryPoint.ts`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.py`、`Edge_ConditionalEntryPoint.py`
 
-[Edge_EntryPoint.py](cases-langgraph/05-edge/Edge_EntryPoint.ts ":include :type=code")
+[Edge_EntryPoint.py](案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.py ":include :type=code")
 
-[Edge_ConditionalEntryPoint.py](cases-langgraph/05-edge/Edge_ConditionalEntryPoint.ts ":include :type=code")
+[Edge_ConditionalEntryPoint.py](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalEntryPoint.py ":include :type=code")
 
 ### 2.9 条件边还能构成循环结构
 
@@ -548,9 +926,9 @@ flowchart LR
 - 下游节点针对每个主题分别生成笑话
 - 最后通过 Reducer 把多路结果合并回 State
 
-【案例源码】`cases-langgraph/06-specialApi/SendDemo.ts`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/SendDemo.py`
 
-[SendDemo.py](cases-langgraph/06-specialApi/SendDemo.ts ":include :type=code")
+[SendDemo.py](案例与源码-3-LangGraph框架/06-specialApi/SendDemo.py ":include :type=code")
 
 从项目角度看，Send 很适合这些场景：
 
@@ -599,9 +977,9 @@ flowchart LR
 - 为什么它既能写入 `messages`、`current_agent`、`task_completed`
 - 又能同时用 `goto` 把流程交给下一个节点，或者直接去 `END`
 
-【案例源码】`cases-langgraph/06-specialApi/CommandDemo.ts`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.py`
 
-[CommandDemo.py](cases-langgraph/06-specialApi/CommandDemo.ts ":include :type=code")
+[CommandDemo.py](案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.py ":include :type=code")
 
 在真实项目里，Command 很适合：
 
@@ -660,9 +1038,9 @@ Runtime 的价值就是把“配置”和“状态”拆开。拆开之后，Sta
 - `StateGraph(..., context_schema=ContextSchema)` 是怎么把运行时上下文挂到图上的
 - 节点里怎么通过 `runtime.context.xxx` 读取配置
 
-【案例源码】`cases-langgraph/06-specialApi/RuntimeContextDemo.ts`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.py`
 
-[RuntimeContextDemo.py](cases-langgraph/06-specialApi/RuntimeContextDemo.ts ":include :type=code")
+[RuntimeContextDemo.py](案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.py ":include :type=code")
 
 ### 3.9 图执行时，外部能看到什么
 
@@ -729,7 +1107,7 @@ Send、Command、Runtime 容易混，可以用下面这张表来记：
 
 **本章小结：**
 
-- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 TypeScript 函数；除了最常见的 `state: Record<string, any>` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
+- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 Python 函数；除了最常见的 `state -> dict` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
 - **Edge** 决定流程怎么流转。普通边适合固定路径，条件边适合状态驱动分支，入口点和条件入口点则决定图从哪里开始。
 - **Send、Command、Runtime** 是三种常用进阶能力：Send 适合动态并行分发，Command 适合决策节点，Runtime 适合把配置和状态拆开。
 - 这一章的重点在于建立一个完整认知：**节点负责处理，边负责流转，State 负责共享数据，进阶控制原语负责让图在运行时更灵活。** 学完本章后，你应当能够分清 **Node** 和 **Edge** 的职责，知道普通边、条件边、入口点、条件入口点分别适合什么场景，并理解 `Send`、`Command`、`Runtime` 三个进阶能力各自解决什么问题。

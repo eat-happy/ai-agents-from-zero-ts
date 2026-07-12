@@ -1,9 +1,189 @@
 # 10 - 深度研搜：网络搜索子智能体与 Tavily 工具
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/12-langgraph-multi-agent/index.ts`
+
+```typescript
+// examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
+
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
+
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
+
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
+
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
+
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
+
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
+
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
+
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
+
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/12-langgraph-multi-agent/index.ts
+```
+
 
 
 ---
@@ -151,7 +331,7 @@ Tavily 是面向大模型使用的搜索 API，它返回的结果通常已经整
 
 ## 4、实现并验证 internet_search 工具
 
-项目对应文件路径：`deepsearch-agents/app/tools/tavily_tool.ts`
+项目对应文件路径：`deepsearch-agents/app/tools/tavily_tool.py`
 
 完整工具可以先按五段理解：
 
@@ -164,66 +344,174 @@ Tavily 是面向大模型使用的搜索 API，它返回的结果通常已经整
 核心代码如下：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
 
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
 
-import "dotenv/config";
-import { tool } from "@langchain/core/tools";
-from tavily import TavilyClient
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
 
-from app.api.monitor import monitor
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
 
-// env loaded via dotenv/config
-// TavilyClient 是实际访问搜索服务的客户端；模块级复用可避免每次工具调用重复初始化
-tavily_client = TavilyClient(apiKey:process.env.TAVILY_API_KEY)
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
 
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
 
-// @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
-// tool(...)
-function internet_search(query: string, topic: Literal["news", "finance", "general"] = "general", max_results: number = 5, include_raw_content: boolean = false,) {
-    /* 
-    根据用户问题检索互联网公开信息
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
 
-    注意：本工具只用于外部公开网页、新闻、政策等信息，不用于查询业务数据库或 RAGFlow 私有知识库
-    :param query: 搜索关键词或自然语言问题
-    :param topic: 搜索主题，可选 news、finance、general
-    :param max_results: 返回的最大结果数
-    :param include_raw_content: 是否返回网页原文内容；false 返回摘要，true 尝试返回更完整正文
-    :return: Tavily 返回的结构化搜索结果
-     */
-    // 工具内部埋点比外层 stream 解析更直接：只要工具被调用，前端就能看到本次搜索参数
-    // 这里只上报查询参数，不上报搜索结果正文，避免监控事件体过大
-    monitor.report_tool(
-        tool_name="网络搜索工具",
-        args={
-            "query": query,
-            "topic": topic,
-            "max_results": max_results,
-            "include_raw_content": include_raw_content,
-        },
-    )
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
 
-    // Tavily 返回 query、results、title、url、content 等结构化字段，后续由子智能体阅读并汇总
-    return tavily_client.search(
-        query=query,
-        topic=topic,
-        max_results=max_results,
-        include_raw_content=include_raw_content,
-    )
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
 
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
 
-if (__name__ == "__main__") {
-    from pprint import pprint
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
 
-    // 本地调试入口：直接运行本文件可验证 TAVILY_API_KEY 和 Tavily API 是否可用
-    pprint(
-        internet_search.invoke(
-            {"query": "2026中国法定节假日放假安排表，我天天都想要放假"}
-        )
-    )
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
 
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
 
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 4.1 参数说明
@@ -276,7 +564,7 @@ if (__name__ == "__main__") {
 
 ### 4.3 实际运行输出怎么读
 
-在项目根目录运行：`uv run python -m app.tools.tavily_tool`
+在项目根目录运行：`uv run npx tsx app.tools.tavily_tool`
 
 一次真实输出会先看到工具监控事件：
 
@@ -289,34 +577,128 @@ if (__name__ == "__main__") {
 下面是把实际输出压缩后的结构，重点看字段，不需要把很长的网页正文都放进教程或报告里：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-{
-    "answer": null,
-    "follow_up_questions": null,
-    "images": [],
-    "query": "2026中国法定节假日放假安排表，我天天都想要放假",
-    "request_id": "6005dc62-...",
-    "response_time": 0.75,
-    "results": [
-        {
-            "title": "国务院办公厅关于2026年部分节假日安排的通知",
-            "url": "http://www.scio.gov.cn/zdgz/jj/202511/t20251110_938367.html",
-            "content": "经国务院批准，现将2026年元旦、春节、清明节、劳动节、端午节、中秋节和国庆节放假调休日期的具体安排通知如下...",
-            "score": 0.86981434,
-            "raw_content": null,
-        },
-        {
-            "title": "國務院辦公廳關於2026年部分節假日安排的通知 - 中國政府網",
-            "url": "http://big5.www.gov.cn/gate/big5/www.gov.cn/gongbao/2025/issue_12406/202511/content_7048922.html",
-            "content": "經國務院批准，現將2026年元旦、春節、清明節、勞動節、端午節、中秋節和國慶節放假調休日期的具體安排通知如下...",
-            "score": 0.8215175,
-            "raw_content": null,
-        },
-        "... 其余结果省略 ..."
-    ],
+// Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
+/**
+ * Maps to LangGraph tool-calling agent pattern
+ * (course chapters 21-24: agent loop as a graph)
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { Annotation, END, START, StateGraph, messagesStateReducer } from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { addNumberTool, getWeatherTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const tools = [addNumberTool, getWeatherTool];
+const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
+void toolsByName;
+
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
+
+async function agentNode(state: typeof AgentState.State) {
+  const model = createChatModel(0).bindTools(tools);
+  const response = await model.invoke([
+    new SystemMessage(
+      "你是工具增强助手。需要计算或查天气时必须调用工具，不要编造。",
+    ),
+    ...state.messages,
+  ]);
+  return { messages: [response] };
 }
 
+async function toolNode(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (!(last instanceof AIMessage) || !last.tool_calls?.length) {
+    return { messages: [] };
+  }
 
+  const outputs: ToolMessage[] = [];
+  for (const call of last.tool_calls) {
+    let observation: string;
+    if (call.name === "add_number") {
+      observation = String(
+        await addNumberTool.invoke(call.args as { a: number; b: number }),
+      );
+    } else if (call.name === "get_weather") {
+      observation = String(
+        await getWeatherTool.invoke(call.args as { city: string }),
+      );
+    } else {
+      observation = `Unknown tool: ${call.name}`;
+    }
+    outputs.push(
+      new ToolMessage({
+        content: observation,
+        tool_call_id: call.id ?? call.name,
+      }),
+    );
+  }
+  return { messages: outputs };
+}
+
+function shouldContinue(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (last instanceof AIMessage && last.tool_calls?.length) {
+    return "tools";
+  }
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(AgentState)
+    .addNode("agent", agentNode)
+    .addNode("tools", toolNode)
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", shouldContinue, {
+      tools: "tools",
+      [END]: END,
+    })
+    .addEdge("tools", "agent")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("11-langgraph-tool-agent | manual ReAct graph");
+
+  // tiny local tool to show schema flexibility
+  const echo = tool(async ({ text }) => `echo:${text}`, {
+    name: "echo",
+    description: "Echo text",
+    schema: z.object({ text: z.string() }),
+  });
+  void echo;
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("请计算 8+15，并告诉我北京天气，最后中文总结。"),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}]`, msg.content);
+    if (msg instanceof AIMessage && msg.tool_calls?.length) {
+      console.log(" tool_calls:", JSON.stringify(msg.tool_calls, null, 2));
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这段输出里有几个很值得注意的点：
@@ -339,23 +721,129 @@ if (__name__ == "__main__") {
 
 ### 5.1 为什么工具里要调用 monitor
 
-第 9 章已经写过 `monitor.ts`。它的作用是把工具调用、子智能体调用和任务结果推给前端。
+第 9 章已经写过 `monitor.py`。它的作用是把工具调用、子智能体调用和任务结果推给前端。
 
 这里把埋点写在工具内部：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-monitor.report_tool(
-    tool_name="网络搜索工具",
-    args={
-        "query": query,
-        "topic": topic,
-        "max_results": max_results,
-        "include_raw_content": include_raw_content,
-    },
-)
+// Real TypeScript from repo: examples/09-agent/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/12-agent
+ * Python refs: AgentSmartSelectV1.0.py, AgentReact.py
+ *
+ * Modern LangChain JS path: createReactAgent (tool-calling ReAct loop).
+ */
+import { HumanMessage } from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { basicTools } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const PRODUCT_DATABASE: Record<
+  string,
+  Array<{ id: string; name: string; popularity: number; price: number }>
+> = {
+  无线耳机: [
+    { id: "WH-1000XM5", name: "索尼 WH-1000XM5", popularity: 95, price: 299 },
+    { id: "QC45", name: "Bose QuietComfort 45", popularity: 88, price: 329 },
+  ],
+  游戏鼠标: [
+    { id: "GPW", name: "罗技 G Pro 无线", popularity: 90, price: 129 },
+    { id: "VIPER", name: "雷蛇 Viper V2 Pro", popularity: 87, price: 149 },
+  ],
+};
 
+const INVENTORY: Record<string, { stock: number; location: string }> = {
+  "WH-1000XM5": { stock: 10, location: "仓库-A" },
+  QC45: { stock: 0, location: "仓库-B" },
+  GPW: { stock: 8, location: "仓库-C" },
+  VIPER: { stock: 12, location: "仓库-A" },
+};
+
+const searchProductsTool = tool(
+  async ({ query }) => {
+    const category = Object.keys(PRODUCT_DATABASE).find((c) => query.includes(c));
+    if (!category) return `未找到与「${query}」匹配的产品类别`;
+    const items = [...PRODUCT_DATABASE[category]].sort(
+      (a, b) => b.popularity - a.popularity,
+    );
+    return items
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.name} (ID:${p.id}) 热度${p.popularity} ￥${p.price}`,
+      )
+      .join("\n");
+  },
+  {
+    name: "search_products",
+    description: "按类别搜索产品，如无线耳机、游戏鼠标",
+    schema: z.object({ query: z.string() }),
+  },
+);
+
+const checkInventoryTool = tool(
+  async ({ productId }) => {
+    const info = INVENTORY[productId];
+    if (!info) return `未找到产品ID: ${productId}`;
+    const status = info.stock > 0 ? "有库存" : "缺货";
+    return `${productId}: ${status} (${info.stock}) @ ${info.location}`;
+  },
+  {
+    name: "check_inventory",
+    description: "根据产品 ID 查询库存",
+    schema: z.object({ productId: z.string() }),
+  },
+);
+
+async function runMathWeatherAgent() {
+  printRunHeader("09-agent | tool agent (math + weather)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: basicTools,
+  });
+
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage("请计算 45+17，并查询深圳天气，最后用中文给一个简短总结。"),
+    ],
+  });
+
+  const last = result.messages[result.messages.length - 1];
+  console.log("[final]", last.content);
+}
+
+async function runReactShopAgent() {
+  printRunHeader("09-agent | ReAct shop agent (search + inventory)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: [searchProductsTool, checkInventoryTool],
+  });
+
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage(
+        "帮我找最受欢迎的无线耳机，并检查第一名的库存，用中文给出购买建议。",
+      ),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    const role = msg.getType?.() ?? msg.constructor.name;
+    console.log(`\n[${role}]`, msg.content);
+  }
+}
+
+async function main() {
+  await runMathWeatherAgent();
+  await runReactShopAgent();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 只要 Agent 调用了 `internet_search`，前端就能看到“正在调用网络搜索工具”，并且能看到这次搜索的参数。
@@ -395,7 +883,7 @@ DeepAgents 底层是图执行逻辑，所以主智能体可以用 `stream` / `as
 
 ```text
 主智能体开始执行
- : stringeam 产出 chunk
+  -> stream 产出 chunk
   -> 后端判断这个 chunk 代表什么事件
   -> 如果是调用工具，就推送 tool 事件
   -> 如果是调用子智能体，就推送 assistant 事件
@@ -405,26 +893,134 @@ DeepAgents 底层是图执行逻辑，所以主智能体可以用 `stream` / `as
 可以先看一个简化版伪代码。这里的 `is_tool_call_chunk`、`is_sub_agent_chunk` 只是为了说明判断思路，不是本章要直接复制的真实函数：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-async for chunk in main_agent.astream(
-    {"messages": [{"role": "user", "content": task_query}]},
-    config=config,
-    subgraphs=true,
-):
-    // 统一处理主智能体和子智能体执行过程中吐出来的片段
-    if (is_tool_call_chunk(chunk)) {
-        monitor.report_tool(
-            tool_name=get_tool_name(chunk),
-            args=get_tool_args(chunk),
-        )
+// Real TypeScript from repo: examples/14-mcp/client-agent.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/11-mcp/McpClientAgent.py
+ *
+ * Flow:
+ * 1) spawn local MCP server over stdio
+ * 2) list MCP tools
+ * 3) wrap tools as LangChain tools
+ * 4) run createReactAgent once with a user question
+ */
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { HumanMessage } from "@langchain/core/messages";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-    } else if (is_sub_agent_chunk(chunk)) {
-        monitor.report_assistant(
-            assistant_name=get_assistant_name(chunk),
-            args=get_assistant_args(chunk),
-        )
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const serverPath = join(__dirname, "server.ts");
 
+function jsonSchemaToZod(inputSchema: unknown): z.ZodObject<z.ZodRawShape> {
+  const schema = (inputSchema ?? {}) as {
+    type?: string;
+    properties?: Record<string, { type?: string; description?: string }>;
+    required?: string[];
+  };
+  const shape: z.ZodRawShape = {};
+  const required = new Set(schema.required ?? []);
+  for (const [key, prop] of Object.entries(schema.properties ?? {})) {
+    let field: z.ZodTypeAny =
+      prop.type === "number" || prop.type === "integer"
+        ? z.number()
+        : prop.type === "boolean"
+          ? z.boolean()
+          : z.string();
+    if (prop.description) field = field.describe(prop.description);
+    if (!required.has(key)) field = field.optional();
+    shape[key] = field;
+  }
+  return z.object(shape);
+}
 
+function textFromMcpResult(result: {
+  content?: Array<{ type: string; text?: string }>;
+}): string {
+  if (!result.content?.length) return JSON.stringify(result);
+  return result.content
+    .map((c) => (c.type === "text" ? (c.text ?? "") : JSON.stringify(c)))
+    .join("\n");
+}
+
+async function main() {
+  printRunHeader("14-mcp | MCP server tools -> LangChain Agent");
+
+  const transport = new StdioClientTransport({
+    command: process.platform === "win32" ? "npx.cmd" : "npx",
+    args: ["tsx", serverPath],
+    stderr: "pipe",
+  });
+
+  const client = new Client({ name: "mcp-demo-client", version: "0.1.0" });
+  await client.connect(transport);
+
+  try {
+    const listed = await client.listTools();
+    console.log(
+      "MCP tools:",
+      listed.tools.map((t) => t.name).join(", ") || "(none)",
+    );
+
+    const resources = await client.listResources();
+    console.log(
+      "MCP resources:",
+      resources.resources.map((r) => r.uri).join(", ") || "(none)",
+    );
+
+    const lcTools = listed.tools.map((mcpTool) => {
+      const schema = jsonSchemaToZod(mcpTool.inputSchema);
+      return new DynamicStructuredTool({
+        name: mcpTool.name,
+        description: mcpTool.description || mcpTool.name,
+        schema,
+        func: async (input) => {
+          const result = await client.callTool({
+            name: mcpTool.name,
+            arguments: input as Record<string, unknown>,
+          });
+          return textFromMcpResult(
+            result as { content?: Array<{ type: string; text?: string }> },
+          );
+        },
+      });
+    });
+
+    if (!lcTools.length) {
+      throw new Error("No MCP tools available");
+    }
+
+    const agent = createReactAgent({
+      llm: createChatModel(0),
+      tools: lcTools,
+    });
+
+    const question =
+      process.argv.slice(2).join(" ") ||
+      "请计算 19+26，并查询上海天气，用中文简短总结。";
+    console.log("\n[question]", question);
+
+    const result = await agent.invoke({
+      messages: [new HumanMessage(question)],
+    });
+
+    const last = result.messages[result.messages.length - 1];
+    console.log("\n[final]", last.content);
+  } finally {
+    await client.close();
+    await transport.close();
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这种做法的好处是：**所有进度都在主执行循环里统一处理**。后续如果前端要做更完整的执行时间线，比如“主智能体 -> 子智能体 -> 工具 -> 返回结果”，流式解析会更集中。但它有一个容易踩坑的地方：如果只对主智能体做普通流式输出，默认更容易看到主智能体这一层的事件；子智能体内部又调用了哪些工具，不一定都会出现在主智能体的流式结果里。
@@ -432,10 +1028,174 @@ async for chunk in main_agent.astream(
 所以如果希望把子智能体内部执行过程也拿出来，就要注意开启子图流式输出：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-subgraphs=true
+// Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
 
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
+
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
+
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
+
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
+
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
+
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
+
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
+
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
+
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 可以把它理解成一句话：**子智能体也是一张子图，只有把子图也纳入流式输出，后端才更容易从 chunk 里观察到子智能体内部的工具调用过程。**
@@ -448,7 +1208,7 @@ subgraphs=true
 
 ```text
 Agent 调用 internet_search
- : numberernet_search 内部先调用 monitor.report_tool
+  -> internet_search 内部先调用 monitor.report_tool
   -> monitor 根据当前 thread_id 找到对应前端连接
   -> WebSocket 把“正在执行网络搜索工具”推给前端
   -> 工具继续调用 Tavily，返回搜索结果
@@ -473,44 +1233,143 @@ Agent 调用 internet_search
 
 工具写完以后，就可以把它和提示词配置组装成子智能体。
 
-项目对应文件路径：`deepsearch-agents/app/agent/subagents/network_search_agent.ts`
+项目对应文件路径：`deepsearch-agents/app/agent/subagents/network_search_agent.py`
 
 这个文件只做一件事：把 YAML 里的网络助手配置和 `internet_search` 工具组装成 DeepAgents 认识的字典。
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-/* 
-网络搜索子智能体配置模块
-
-将 app/prompt/prompts.yml 中的 tavily 配置与 internet_search 工具组装成
-DeepAgents 可识别的字典式子智能体。主智能体后续会根据 description
-决定是否把公开网络信息查询任务分派给它。
+// Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
+/**
+ * Maps to LangGraph tool-calling agent pattern
+ * (course chapters 21-24: agent loop as a graph)
  */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { Annotation, END, START, StateGraph, messagesStateReducer } from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { addNumberTool, getWeatherTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-from app.agent.prompts import sub_agents_content
-from app.tools.tavily_tool import internet_search
+const tools = [addNumberTool, getWeatherTool];
+const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
+void toolsByName;
 
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 
-// 字典式子智能体的核心字段来自 YAML，便于后续只改配置就能调整路由描述和行为约束
-// tools 列表声明该子智能体可以调用的真实外部能力
-network_search_agent = {
-    "name": sub_agents_content["tavily"]["name"],
-    "description": sub_agents_content["tavily"]["description"],
-    "system_prompt": sub_agents_content["tavily"]["system_prompt"],
-    "tools": [internet_search],
+async function agentNode(state: typeof AgentState.State) {
+  const model = createChatModel(0).bindTools(tools);
+  const response = await model.invoke([
+    new SystemMessage(
+      "你是工具增强助手。需要计算或查天气时必须调用工具，不要编造。",
+    ),
+    ...state.messages,
+  ]);
+  return { messages: [response] };
 }
 
+async function toolNode(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (!(last instanceof AIMessage) || !last.tool_calls?.length) {
+    return { messages: [] };
+  }
 
+  const outputs: ToolMessage[] = [];
+  for (const call of last.tool_calls) {
+    let observation: string;
+    if (call.name === "add_number") {
+      observation = String(
+        await addNumberTool.invoke(call.args as { a: number; b: number }),
+      );
+    } else if (call.name === "get_weather") {
+      observation = String(
+        await getWeatherTool.invoke(call.args as { city: string }),
+      );
+    } else {
+      observation = `Unknown tool: ${call.name}`;
+    }
+    outputs.push(
+      new ToolMessage({
+        content: observation,
+        tool_call_id: call.id ?? call.name,
+      }),
+    );
+  }
+  return { messages: outputs };
+}
+
+function shouldContinue(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (last instanceof AIMessage && last.tool_calls?.length) {
+    return "tools";
+  }
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(AgentState)
+    .addNode("agent", agentNode)
+    .addNode("tools", toolNode)
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", shouldContinue, {
+      tools: "tools",
+      [END]: END,
+    })
+    .addEdge("tools", "agent")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("11-langgraph-tool-agent | manual ReAct graph");
+
+  // tiny local tool to show schema flexibility
+  const echo = tool(async ({ text }) => `echo:${text}`, {
+    name: "echo",
+    description: "Echo text",
+    schema: z.object({ text: z.string() }),
+  });
+  void echo;
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("请计算 8+15，并告诉我北京天气，最后中文总结。"),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}]`, msg.content);
+    if (msg instanceof AIMessage && msg.tool_calls?.length) {
+      console.log(" tool_calls:", JSON.stringify(msg.tool_calls, null, 2));
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
-这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.ts` 并没有把提示词硬编码在 TypeScript 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.ts` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 TypeScript 代码。
+这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.py` 并没有把提示词硬编码在 Python 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.py` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 Python 代码。
 
 | 字段            | 来源                       | 作用                         |
 | --------------- | -------------------------- | ---------------------------- |
 | `name`          | `prompts.yml`              | 子智能体名称                 |
 | `description`   | `prompts.yml`              | 给主智能体判断何时调用       |
 | `system_prompt` | `prompts.yml`              | 给网络搜索助手自己的行为约束 |
-| `tools`         | `app/tools/tavily_tool.ts` | 子智能体可以调用的真实工具   |
+| `tools`         | `app/tools/tavily_tool.py` | 子智能体可以调用的真实工具   |
 
 ---
 

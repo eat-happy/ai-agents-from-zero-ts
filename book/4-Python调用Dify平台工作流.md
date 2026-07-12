@@ -1,41 +1,52 @@
-# 第 4 章 TypeScript / Node.js 调用 Dify 平台工作流
-
+# 4 - Python 调用 Dify 平台工作流
 
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
 
-## TypeScript / Node.js 最小可运行示例
+## TypeScript 可运行示例（推荐）
 
-> 本章原 Python 调用示例已迁移。下面给出 Node.js 侧最常用的 etch 写法，便于你直接落地。
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
 
-```ts
-const DIFY_API_KEY = process.env.DIFY_API_KEY!;
-const BASE = process.env.DIFY_BASE_URL || "https://api.dify.ai/v1";
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
-async function runDifyWorkflow(inputs: Record<string, unknown>) {
-  const res = await fetch(`${BASE}/workflows/run`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${DIFY_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      inputs,
-      response_mode: "blocking",
-      user: "ts-demo-user",
-    }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
 }
 
-const result = await runDifyWorkflow({ query: "帮我分析客户投诉" });
-console.log(result);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
-本章偏**平台调用实战**：学会用 API 和 TypeScript / Node.js 调用你在 Dify 上已搭建好的工作流，把“页面里的工作流”真正变成“代码里可调用的服务”。
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
+
+
+本章偏**平台调用实战**：学会用 API 和 Python 调用你在 Dify 上已搭建好的工作流，把“页面里的工作流”真正变成“代码里可调用的服务”。
 
 ---
 
@@ -66,7 +77,7 @@ Dify 会为工作流提供对应的 API 文档入口。
 
 ![Dify 工作流 API 文档入口的界面示意图](images/4/4-1-2-1.png)
 
-第一次学习时，建议你不要跳过这一步。因为后面 TypeScript 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
+第一次学习时，建议你不要跳过这一步。因为后面 Python 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
 
 ### 1.3 创建 API 密钥
 
@@ -247,11 +258,11 @@ Body 选择 `raw`，格式选择 `JSON`。
 
 平台日志的价值非常大，因为它能告诉你：这次请求有没有真正进到工作流；哪个节点报错了；输入变量有没有传对；最终输出是不是和代码侧拿到的一致。
 
-很多时候，问题并不是 TypeScript 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
+很多时候，问题并不是 Python 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
 
 ---
 
-## 5、用 TypeScript / Node.js 调用 Dify 工作流
+## 5、用 Python 调用 Dify 工作流
 
 ### 5.1 安装依赖
 
@@ -262,116 +273,34 @@ npm install requests
 ### 5.2 一份更适合真实项目的示例代码
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import requests
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
-// 响应返回模式
-// 流式，基于 SSE（Server-Sent Events）实现类似打字机输出方式的流式返回
-STREAMING_MODE="streaming"
-// 阻塞式，等待执行完毕后返回结果（流程较长则可能会被中断）。由于 Dify 云/网关限制，请求在约 100 秒无返回后会超时中断
-BLOCKING_MODE="blocking"
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
-// 工作流的API_KEY
-API_KEY="{your key}"
-// Dify base_url，如果是本地部署，替换为 http://localhost/v1
-BASE_URL="https://api.dify.ai/v1"
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
-// 工作流完成标志
-WORKFLOW_FINISHED="workflow_finished"
-// 工作流成功标志
-WORKFLOW_SUCCESS="succeeded"
+  console.log("\n[AI]");
+  console.log(res.content);
+}
 
-// 用于启动工作流
-function stream_dify_workflow(target, apiKey:API_KEY, configuration:{ baseURL:BASE_URL, username="python_request", mode=STREAMING_MODE) {
-    // 拼接用于启动工作流的 url
-    url = `${base_url}/workflows/run`
-
-    // 拼接头信息，包括API Key和数据类型
-    headers = {
-        "Authorization": `Bearer ${api_key}`,
-        "Content-Type": "application/json"
-    }
-
-    // 拼接请求体
-    payload = {
-        "inputs": {"target": target},
-        "response_mode": mode,
-        "user": username
-    }
-
-    try {
-        // 使用stream=True保持连接打开
-        with requests.post(url, headers=headers, json=payload, stream=true) as response:
-            if (response.status_code != 200) {
-                console.log(`请求失败，状态码: ${response.status_code}`)
-                console.log(response.text)
-                return
-
-            console.log("=== 开始接收流式响应: ===")
-            // 逐行读取服务器推送的数据
-            for (const line of response.iter_lines()) {
-                if (line) {
-                    // 解码
-                    decoded_line = line.decode('utf-8')
-
-                    // 将 JSON 中的 Unicode 转义序列（如 \uXXXX）解码为对应字符
-                    fixed_line = decoded_line.encode("utf-8").decode("unicode_escape")
-
-                    // 打印由二进制解析为 UTF-8 后的响应
-                    console.log(`decoded_line: ${decoded_line}`)
-                    // 解码后换行会导致日志非常乱，一般不打开
-                    // console.log(`fixed_line: ${fixed_line}`)
-                    // console.log(fixed_line)
-
-                    // 去除SSE格式前缀
-                    if(decoded_line.startswith("data: ")):
-                        decoded_line=decoded_line[6:]
-
-                        try {
-                            // 尝试解析为JSON
-                            json_data = json.loads(decoded_line)
-                            if(json_data.get("event")==WORKFLOW_FINISHED):
-                                console.log("---> 工作流执行完毕 <---")
-                                console.log(`{json_data.get(`data")=}")
-                                data = json_data.get("data")
-                                workflow_status = data.get("status")
-                                if ((workflow_status == WORKFLOW_SUCCESS)) {
-                                    console.log("---> 工作流执行成功 <---")
-
-                                    try {
-                                        // 获取工作流最终输出
-                                        result = data.get("outputs").get("output")
-
-                                        // 返回结果
-                                        return result
-                                    } catch (e) {
-                                        console.log("工作流输出解码错误: ", e)
-                                        console.log("data: ", data)
-                                        return null
-                                } else {
-                                    console.log("---> 工作流执行失败 <---")
-                                    return null
-                        } catch (e) {
-                            console.log("JSON解析错误: ", e)
-                            return null
-
-            console.log("=== 流式响应结束 ===")
-
-    } catch {
-        console.log(`请求发生错误: ${e}`)
-        return null
-
-
-if (__name__ == "__main__") {
-    result = stream_dify_workflow("新能源发展现状")
-    console.log("----------> result <----------")
-
-    // 若成功返回，遍历结果列表并打印最终输出（失败时 result 为 null）
-    if (result) {
-        for (const item of result) {
-            console.log(item)
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 5.3 代码里最关键的三件事
@@ -455,11 +384,34 @@ decoded_line: data: {"event":"workflow_finished", "data":{"status":"succeeded", 
 例如：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-final_text = outputs["output"][0]
-console.log(final_text[:300])
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 6.4 查看 Dify 后台日志
@@ -487,7 +439,7 @@ console.log(final_text[:300])
 
 **章节思考题：**
 
-1. 从页面里的 Dify 工作流，到 TypeScript 代码调用，中间必须确认哪几个点？
+1. 从页面里的 Dify 工作流，到 Python 代码调用，中间必须确认哪几个点？
 
    **参考思路：** 先确认工作流已发布，再确认 API Key、调用地址、`inputs` 字段、`response_mode`、`user` 和日志入口。页面能跑只是第一步，代码侧还要验证鉴权、参数和返回事件是否一致。
 
@@ -508,6 +460,6 @@ console.log(final_text[:300])
 
 **建议下一步：**
 
-- 如果你还要继续接 Coze 平台工作流，进入 [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
+- 如果你还要继续接 Coze 平台工作流，进入 [第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
 - 如果你想把平台能力和 Agent 原理连接起来，进入 [第 21 章 Agent 智能体](21-Agent智能体.md)。
 - 如果你准备部署自己的 Dify 环境，进入 [第 6 章 Dify 的安装和启动](6-Coze与Dify的Windows平台部署.md#_4、dify-的安装和启动) 或 [第 7 章 企业级大模型部署](7-企业级大模型部署.md)。

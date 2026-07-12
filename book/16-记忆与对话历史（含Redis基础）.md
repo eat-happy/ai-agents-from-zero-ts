@@ -1,9 +1,81 @@
 # 16 - 记忆与对话历史（含 Redis 基础）
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/06-memory/index.ts`
+
+```typescript
+// examples/06-memory/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/07-memory
+ * Python refs: Memory_InMemoryChatMessageHistory.py, Memory_RunnableWithMessageHistory*.py
+ *
+ * JS/TS approach: keep an in-memory message list (same teaching goal as chat history).
+ * Redis variants are documented in docs/MAPPING.md for production follow-up.
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  type BaseMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+class InMemoryChatHistory {
+  private store = new Map<string, BaseMessage[]>();
+
+  get(sessionId: string): BaseMessage[] {
+    return this.store.get(sessionId) ?? [];
+  }
+
+  append(sessionId: string, messages: BaseMessage[]) {
+    const prev = this.get(sessionId);
+    this.store.set(sessionId, [...prev, ...messages]);
+  }
+}
+
+async function chat(sessionId: string, history: InMemoryChatHistory, text: string) {
+  const model = createChatModel(0.2);
+  const messages: BaseMessage[] = [
+    new SystemMessage("你是有记忆的助教。请结合历史对话回答。"),
+    ...history.get(sessionId),
+    new HumanMessage(text),
+  ];
+  const ai = await model.invoke(messages);
+  history.append(sessionId, [new HumanMessage(text), new AIMessage(String(ai.content))]);
+  return String(ai.content);
+}
+
+async function main() {
+  printRunHeader("06-memory | multi-turn chat history");
+  const history = new InMemoryChatHistory();
+  const sessionId = "user-001";
+
+  const a1 = await chat(sessionId, history, "我叫小林，我在学 TypeScript Agent。");
+  console.log("\n[round1]", a1);
+
+  const a2 = await chat(sessionId, history, "还记得我的名字和在学什么吗？");
+  console.log("\n[round2]", a2);
+
+  console.log("\n[history size]", history.get(sessionId).length, "messages");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/06-memory/index.ts
+```
+
 
 
 ---
@@ -114,9 +186,9 @@
 
 因为程序没有保存第一轮内容，也没有在第二轮重新注入历史，所以模型只能把第二个问题当作一条全新的请求处理，于是给出“我不知道”之类的回答。
 
-【案例源码】`cases-langchain/07-memory/Memory_IDontKnow.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_IDontKnow.py`
 
-[Memory_IDontKnow.py](cases-langchain/07-memory/Memory_IDontKnow.ts ":include :type=code")
+[Memory_IDontKnow.py](案例与源码-2-LangChain框架/07-memory/Memory_IDontKnow.py ":include :type=code")
 
 这个案例用来建立一个基础直觉：**模型不是天然会记住多轮对话，是程序决定它能不能看见历史。**
 
@@ -263,13 +335,13 @@ LangChain 提供了多种聊天历史实现（如内存、文件、Redis、Elast
 
 | 文件                                     | 作用                              |
 | ---------------------------------------- | --------------------------------- |
-| `Memory_IDontKnow.ts`                    | 先看无记忆时的问题                |
-| `Memory_RunnableWithMessageHistory.ts`   | 最基础的内存版带历史对话          |
-| `Memory_RunnableWithMessageHistoryV2.ts` | 多 session 版，对应真实多用户场景 |
-| `Memory_InMemoryChatMessageHistory.ts`   | 不走包装器，直接手动操作 history  |
-| `RedisEnvCheck.ts`                       | 跑 Redis 版前先做环境校验         |
-| `Memory_RedisChatMessageHistory.ts`      | Redis 持久化主案例                |
-| `Memory_RedisStackChatMessageHistory.ts` | Redis Stack 可选案例              |
+| `Memory_IDontKnow.py`                    | 先看无记忆时的问题                |
+| `Memory_RunnableWithMessageHistory.py`   | 最基础的内存版带历史对话          |
+| `Memory_RunnableWithMessageHistoryV2.py` | 多 session 版，对应真实多用户场景 |
+| `Memory_InMemoryChatMessageHistory.py`   | 不走包装器，直接手动操作 history  |
+| `RedisEnvCheck.py`                       | 跑 Redis 版前先做环境校验         |
+| `Memory_RedisChatMessageHistory.py`      | Redis 持久化主案例                |
+| `Memory_RedisStackChatMessageHistory.py` | Redis Stack 可选案例              |
 
 这样安排其实很合理：
 
@@ -300,9 +372,9 @@ LangChain 提供了多种聊天历史实现（如内存、文件、Redis、Elast
 
 #### 5.1.1 最基础写法：RunnableWithMessageHistory
 
-【案例源码】`cases-langchain/07-memory/Memory_RunnableWithMessageHistory.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_RunnableWithMessageHistory.py`
 
-[Memory_RunnableWithMessageHistory.py](cases-langchain/07-memory/Memory_RunnableWithMessageHistory.ts ":include :type=code")
+[Memory_RunnableWithMessageHistory.py](案例与源码-2-LangChain框架/07-memory/Memory_RunnableWithMessageHistory.py ":include :type=code")
 
 这个案例最值得看懂的点有三个：
 
@@ -312,9 +384,9 @@ LangChain 提供了多种聊天历史实现（如内存、文件、Redis、Elast
 
 #### 5.1.2 多 session 写法：按 session_id 维护多份历史
 
-【案例源码】`cases-langchain/07-memory/Memory_RunnableWithMessageHistoryV2.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_RunnableWithMessageHistoryV2.py`
 
-[Memory_RunnableWithMessageHistoryV2.py](cases-langchain/07-memory/Memory_RunnableWithMessageHistoryV2.ts ":include :type=code")
+[Memory_RunnableWithMessageHistoryV2.py](案例与源码-2-LangChain框架/07-memory/Memory_RunnableWithMessageHistoryV2.py ":include :type=code")
 
 这个案例比上一个更贴近真实项目，因为真实系统里不会只有一个用户，也不会只有一份历史。
 
@@ -324,9 +396,9 @@ LangChain 提供了多种聊天历史实现（如内存、文件、Redis、Elast
 
 #### 5.1.3 直接操作 InMemoryChatMessageHistory
 
-【案例源码】`cases-langchain/07-memory/Memory_InMemoryChatMessageHistory.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_InMemoryChatMessageHistory.py`
 
-[Memory_InMemoryChatMessageHistory.py](cases-langchain/07-memory/Memory_InMemoryChatMessageHistory.ts ":include :type=code")
+[Memory_InMemoryChatMessageHistory.py](案例与源码-2-LangChain框架/07-memory/Memory_InMemoryChatMessageHistory.py ":include :type=code")
 
 这个案例不再通过 `RunnableWithMessageHistory` 自动管理，而是手动：
 
@@ -360,10 +432,10 @@ LangChain 提供了多种聊天历史实现（如内存、文件、Redis、Elast
 
 同时结合本项目当前依赖，你也要知道：
 
-- 本仓库 `package.json` 中已经包含 `redis>=5.3,<6`
+- 本仓库 `requirements.txt` 中已经包含 `redis>=5.3,<6`
 - 也包含 `langchain-redis>=0.2`
 
-所以如果你已经执行过 `npm install -r package.json`，通常不需要再单独补装基础依赖。
+所以如果你已经执行过 `npm install -r requirements.txt`，通常不需要再单独补装基础依赖。
 
 #### 5.2.2 Redis 与 Redis Stack 简介
 
@@ -460,17 +532,17 @@ LRANGE message_store:user-001 0 -1
 1. Python 里的 `redis` 包是否安装正常
 2. Redis 服务是否真的能连上
 
-【案例源码】`cases-langchain/07-memory/RedisEnvCheck.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/RedisEnvCheck.py`
 
-[RedisEnvCheck.py](cases-langchain/07-memory/RedisEnvCheck.ts ":include :type=code")
+[RedisEnvCheck.py](案例与源码-2-LangChain框架/07-memory/RedisEnvCheck.py ":include :type=code")
 
 这个脚本建议作为“跑 Redis 案例前的第一步”，因为很多问题其实不是 LangChain 的问题，而是 Redis 环境本身没就绪。
 
 #### 5.2.6 案例：Redis 对话历史
 
-【案例源码】`cases-langchain/07-memory/Memory_RedisChatMessageHistory.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_RedisChatMessageHistory.py`
 
-[Memory_RedisChatMessageHistory.py](cases-langchain/07-memory/Memory_RedisChatMessageHistory.ts ":include :type=code")
+[Memory_RedisChatMessageHistory.py](案例与源码-2-LangChain框架/07-memory/Memory_RedisChatMessageHistory.py ":include :type=code")
 
 这是本章最重要的持久化案例。它和内存版相比，真正变化的核心只有一处：
 
@@ -488,9 +560,9 @@ LRANGE message_store:user-001 0 -1
 
 #### 5.2.7 案例：使用 Redis Stack（可选）
 
-【案例源码】`cases-langchain/07-memory/Memory_RedisStackChatMessageHistory.ts`
+【案例源码】`案例与源码-2-LangChain框架/07-memory/Memory_RedisStackChatMessageHistory.py`
 
-[Memory_RedisStackChatMessageHistory.py](cases-langchain/07-memory/Memory_RedisStackChatMessageHistory.ts ":include :type=code")
+[Memory_RedisStackChatMessageHistory.py](案例与源码-2-LangChain框架/07-memory/Memory_RedisStackChatMessageHistory.py ":include :type=code")
 
 这个案例和上一节主案例的逻辑基本一致，只是默认连接到了 Redis Stack 常见端口。
 

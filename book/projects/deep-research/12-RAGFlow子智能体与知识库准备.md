@@ -1,9 +1,189 @@
 # 12 - 深度研搜：RAGFlow 子智能体与知识库准备
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/12-langgraph-multi-agent/index.ts`
+
+```typescript
+// examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
+
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
+
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
+
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
+
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
+
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
+
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
+
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
+
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
+
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
+
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/12-langgraph-multi-agent/index.ts
+```
+
 
 
 ---
@@ -724,10 +904,174 @@ RAGFlow 是一个独立服务。今天可能只有“电商行业助手”和“
 如果我们在代码里写死：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-chat_name = "电商行业助手"
+// Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
 
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
+
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
+
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
+
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
+
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
+
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
+
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
+
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
+
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 那系统只能问一个固定助手，扩展性很差。
@@ -764,43 +1108,136 @@ chat_name = "电商行业助手"
 
 ### 7.1 读取 RAGFlow 环境变量
 
-项目对应文件路径：`deepsearch-agents/app/ragflow/rag_config.ts`。
+项目对应文件路径：`deepsearch-agents/app/ragflow/rag_config.py`。
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-/* 
-RAGFlow 连接配置加载模块
-
-集中读取 RAGFlow SDK 需要的 API Key 和服务地址，供原始调用示例与
-LangChain 工具共用。这样后续如果 .env 字段或读取规则调整，只需要改这一处。
+// Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
+/**
+ * Maps to LangGraph tool-calling agent pattern
+ * (course chapters 21-24: agent loop as a graph)
  */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { Annotation, END, START, StateGraph, messagesStateReducer } from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { addNumberTool, getWeatherTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const tools = [addNumberTool, getWeatherTool];
+const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
+void toolsByName;
 
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 
+async function agentNode(state: typeof AgentState.State) {
+  const model = createChatModel(0).bindTools(tools);
+  const response = await model.invoke([
+    new SystemMessage(
+      "你是工具增强助手。需要计算或查天气时必须调用工具，不要编造。",
+    ),
+    ...state.messages,
+  ]);
+  return { messages: [response] };
+}
 
-from dotenv import find_dotenv, load_dotenv
+async function toolNode(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (!(last instanceof AIMessage) || !last.tool_calls?.length) {
+    return { messages: [] };
+  }
 
+  const outputs: ToolMessage[] = [];
+  for (const call of last.tool_calls) {
+    let observation: string;
+    if (call.name === "add_number") {
+      observation = String(
+        await addNumberTool.invoke(call.args as { a: number; b: number }),
+      );
+    } else if (call.name === "get_weather") {
+      observation = String(
+        await getWeatherTool.invoke(call.args as { city: string }),
+      );
+    } else {
+      observation = `Unknown tool: ${call.name}`;
+    }
+    outputs.push(
+      new ToolMessage({
+        content: observation,
+        tool_call_id: call.id ?? call.name,
+      }),
+    );
+  }
+  return { messages: outputs };
+}
 
-function _load_ragflow_env(): [string | null, string | null] {
-    /* 
-    加载 RAGFlow 环境变量
+function shouldContinue(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (last instanceof AIMessage && last.tool_calls?.length) {
+    return "tools";
+  }
+  return END;
+}
 
-    使用 python-dotenv 自动向上查找 .env，保持和项目其他配置加载方式一致。
-    :return: (api_key, base_url)，缺失配置时对应位置返回 null
-     */
-    load_dotenv(find_dotenv())
+function buildGraph() {
+  return new StateGraph(AgentState)
+    .addNode("agent", agentNode)
+    .addNode("tools", toolNode)
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", shouldContinue, {
+      tools: "tools",
+      [END]: END,
+    })
+    .addEdge("tools", "agent")
+    .compile();
+}
 
-    // RAGFlow SDK 初始化只需要这两个核心字段：认证 API Key 和服务基础地址
-    apiKey: process.env.RAGFLOW_API_KEY
-    configuration:{ baseURL: process.env.RAGFLOW_API_URL
-    return api_key, base_url
+async function main() {
+  printRunHeader("11-langgraph-tool-agent | manual ReAct graph");
 
+  // tiny local tool to show schema flexibility
+  const echo = tool(async ({ text }) => `echo:${text}`, {
+    name: "echo",
+    description: "Echo text",
+    schema: z.object({ text: z.string() }),
+  });
+  void echo;
 
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("请计算 8+15，并告诉我北京天气，最后中文总结。"),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}]`, msg.content);
+    if (msg instanceof AIMessage && msg.tool_calls?.length) {
+      console.log(" tool_calls:", JSON.stringify(msg.tool_calls, null, 2));
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 7.2 可选扩展：用代码创建知识库
 
-项目对应文件路径：`deepsearch-agents/app/ragflow/knowledge_demo.ts`
+项目对应文件路径：`deepsearch-agents/app/ragflow/knowledge_demo.py`
 
 前面主要通过 RAGFlow 页面创建知识库，这是学习阶段最直观的方式。但 RAGFlow SDK 也支持通过代码创建知识库。
 
@@ -809,35 +1246,124 @@ function _load_ragflow_env(): [string | null, string | null] {
 核心代码可以这样理解：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-from app.ragflow.rag_config import _load_ragflow_env
-from ragflow_sdk import RAGFlow
+// Real TypeScript from repo: examples/09-agent/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/12-agent
+ * Python refs: AgentSmartSelectV1.0.py, AgentReact.py
+ *
+ * Modern LangChain JS path: createReactAgent (tool-calling ReAct loop).
+ */
+import { HumanMessage } from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { basicTools } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const PRODUCT_DATABASE: Record<
+  string,
+  Array<{ id: string; name: string; popularity: number; price: number }>
+> = {
+  无线耳机: [
+    { id: "WH-1000XM5", name: "索尼 WH-1000XM5", popularity: 95, price: 299 },
+    { id: "QC45", name: "Bose QuietComfort 45", popularity: 88, price: 329 },
+  ],
+  游戏鼠标: [
+    { id: "GPW", name: "罗技 G Pro 无线", popularity: 90, price: 129 },
+    { id: "VIPER", name: "雷蛇 Viper V2 Pro", popularity: 87, price: 149 },
+  ],
+};
 
-// RAGFlow SDK 的入口客户端，后续 Dataset、Chat、Session 操作都从这里发起
-api_key, configuration:{ baseURL: _load_ragflow_env()
-ragflow_client = RAGFlow(apiKey:api_key, configuration:{ baseURL:base_url)
+const INVENTORY: Record<string, { stock: number; location: string }> = {
+  "WH-1000XM5": { stock: 10, location: "仓库-A" },
+  QC45: { stock: 0, location: "仓库-B" },
+  GPW: { stock: 8, location: "仓库-C" },
+  VIPER: { stock: 12, location: "仓库-A" },
+};
 
+const searchProductsTool = tool(
+  async ({ query }) => {
+    const category = Object.keys(PRODUCT_DATABASE).find((c) => query.includes(c));
+    if (!category) return `未找到与「${query}」匹配的产品类别`;
+    const items = [...PRODUCT_DATABASE[category]].sort(
+      (a, b) => b.popularity - a.popularity,
+    );
+    return items
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.name} (ID:${p.id}) 热度${p.popularity} ￥${p.price}`,
+      )
+      .join("\n");
+  },
+  {
+    name: "search_products",
+    description: "按类别搜索产品，如无线耳机、游戏鼠标",
+    schema: z.object({ query: z.string() }),
+  },
+);
 
-function create_knowledge_base(knowledge_base_name, description) {
-    /* 
-    通过代码创建 RAGFlow 知识库
+const checkInventoryTool = tool(
+  async ({ productId }) => {
+    const info = INVENTORY[productId];
+    if (!info) return `未找到产品ID: ${productId}`;
+    const status = info.stock > 0 ? "有库存" : "缺货";
+    return `${productId}: ${status} (${info.stock}) @ ${info.location}`;
+  },
+  {
+    name: "check_inventory",
+    description: "根据产品 ID 查询库存",
+    schema: z.object({ productId: z.string() }),
+  },
+);
 
-    知识库名称和描述要写准确：后续聊天助手会绑定知识库，
-    Agent 又会根据助手描述和关联知识库来判断该问哪个助手。
-    :param knowledge_base_name: 知识库名称
-    :param description: 知识库描述
-     */
-    // RAGFlow SDK 中知识库通常对应 Dataset；Chat 会再绑定一个或多个 Dataset 对外提供问答
-    // embedding_model 需要和 RAGFlow 页面中可用的模型供应商配置保持一致
-    ds = ragflow_client.create_dataset(
-        name=knowledge_base_name,
-        description=description,
-        embedding_model="text-embedding-v3@Tongyi-Qianwen",
-    )
-    console.log(`创建知识库成功：${ds},${ds.id}`)
+async function runMathWeatherAgent() {
+  printRunHeader("09-agent | tool agent (math + weather)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: basicTools,
+  });
 
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage("请计算 45+17，并查询深圳天气，最后用中文给一个简短总结。"),
+    ],
+  });
 
+  const last = result.messages[result.messages.length - 1];
+  console.log("[final]", last.content);
+}
+
+async function runReactShopAgent() {
+  printRunHeader("09-agent | ReAct shop agent (search + inventory)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: [searchProductsTool, checkInventoryTool],
+  });
+
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage(
+        "帮我找最受欢迎的无线耳机，并检查第一名的库存，用中文给出购买建议。",
+      ),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    const role = msg.getType?.() ?? msg.constructor.name;
+    console.log(`\n[${role}]`, msg.content);
+  }
+}
+
+async function main() {
+  await runMathWeatherAgent();
+  await runReactShopAgent();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 7.3 可选扩展：用代码上传文档
@@ -847,38 +1373,134 @@ function create_knowledge_base(knowledge_base_name, description) {
 精简版流程如下：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import os.path
+// Real TypeScript from repo: examples/14-mcp/client-agent.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/11-mcp/McpClientAgent.py
+ *
+ * Flow:
+ * 1) spawn local MCP server over stdio
+ * 2) list MCP tools
+ * 3) wrap tools as LangChain tools
+ * 4) run createReactAgent once with a user question
+ */
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { HumanMessage } from "@langchain/core/messages";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const serverPath = join(__dirname, "server.ts");
 
-function upload_file_to_knowledge_base(kb_id, file_paths) {
-    /* 
-    向指定知识库上传一个或多个本地文件
+function jsonSchemaToZod(inputSchema: unknown): z.ZodObject<z.ZodRawShape> {
+  const schema = (inputSchema ?? {}) as {
+    type?: string;
+    properties?: Record<string, { type?: string; description?: string }>;
+    required?: string[];
+  };
+  const shape: z.ZodRawShape = {};
+  const required = new Set(schema.required ?? []);
+  for (const [key, prop] of Object.entries(schema.properties ?? {})) {
+    let field: z.ZodTypeAny =
+      prop.type === "number" || prop.type === "integer"
+        ? z.number()
+        : prop.type === "boolean"
+          ? z.boolean()
+          : z.string();
+    if (prop.description) field = field.describe(prop.description);
+    if (!required.has(key)) field = field.optional();
+    shape[key] = field;
+  }
+  return z.object(shape);
+}
 
-    注意：此函数只负责把文件送进 Dataset。上传后仍需要在 RAGFlow 页面或任务中完成解析，
-    否则文档还没有切片、向量化，后续聊天助手可能检索不到内容。
-    :param kb_id: RAGFlow 知识库 ID，也就是 Dataset ID
-    :param file_paths: 本地文件路径列表
-     */
-    // 先根据知识库 ID 查询 Dataset 对象，确认文件会上传到目标知识库
-    datasets = ragflow_client.list_datasets(id=kb_id, page=1, page_size=10)
-    dataset = datasets[0]
+function textFromMcpResult(result: {
+  content?: Array<{ type: string; text?: string }>;
+}): string {
+  if (!result.content?.length) return JSON.stringify(result);
+  return result.content
+    .map((c) => (c.type === "text" ? (c.text ?? "") : JSON.stringify(c)))
+    .join("\n");
+}
 
-    // RAGFlow upload_documents 接收的是文档字典列表：
-    // display_name/name 用于页面展示，blob 存放文件二进制内容
-    document_list = []
-    for (const file_path of file_paths) {
-        file_name = os.path.basename(file_path)
-        with open(file_path, "rb") as f:
-            blob = f.read()
-            document_list.append(
-                {"display_name": file_name, "name": file_name, "blob": blob}
-            )
+async function main() {
+  printRunHeader("14-mcp | MCP server tools -> LangChain Agent");
 
-    // 上传完成后，RAGFlow 侧还要执行解析流程，解析成功后才能被 Chat 检索
-    dataset.upload_documents(document_list)
+  const transport = new StdioClientTransport({
+    command: process.platform === "win32" ? "npx.cmd" : "npx",
+    args: ["tsx", serverPath],
+    stderr: "pipe",
+  });
 
+  const client = new Client({ name: "mcp-demo-client", version: "0.1.0" });
+  await client.connect(transport);
 
+  try {
+    const listed = await client.listTools();
+    console.log(
+      "MCP tools:",
+      listed.tools.map((t) => t.name).join(", ") || "(none)",
+    );
+
+    const resources = await client.listResources();
+    console.log(
+      "MCP resources:",
+      resources.resources.map((r) => r.uri).join(", ") || "(none)",
+    );
+
+    const lcTools = listed.tools.map((mcpTool) => {
+      const schema = jsonSchemaToZod(mcpTool.inputSchema);
+      return new DynamicStructuredTool({
+        name: mcpTool.name,
+        description: mcpTool.description || mcpTool.name,
+        schema,
+        func: async (input) => {
+          const result = await client.callTool({
+            name: mcpTool.name,
+            arguments: input as Record<string, unknown>,
+          });
+          return textFromMcpResult(
+            result as { content?: Array<{ type: string; text?: string }> },
+          );
+        },
+      });
+    });
+
+    if (!lcTools.length) {
+      throw new Error("No MCP tools available");
+    }
+
+    const agent = createReactAgent({
+      llm: createChatModel(0),
+      tools: lcTools,
+    });
+
+    const question =
+      process.argv.slice(2).join(" ") ||
+      "请计算 19+26，并查询上海天气，用中文简短总结。";
+    console.log("\n[question]", question);
+
+    const result = await agent.invoke({
+      messages: [new HumanMessage(question)],
+    });
+
+    const last = result.messages[result.messages.length - 1];
+    console.log("\n[final]", last.content);
+  } finally {
+    await client.close();
+    await transport.close();
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这个函数只负责“把文件送进 RAGFlow”。上传后仍然要关注解析状态：如果文档没有完成解析，后面的 `create_ask_delete` 即使能连上助手，也可能检索不到有效内容。
@@ -889,7 +1511,7 @@ function upload_file_to_knowledge_base(kb_id, file_paths) {
 
 ## 8、工具一：get_assistant_list
 
-项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.ts`
+项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.py`
 
 ### 8.1 工具作用
 
@@ -910,50 +1532,174 @@ function upload_file_to_knowledge_base(kb_id, file_paths) {
 ### 8.2 核心代码
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-import { tool } from "@langchain/core/tools";
-from ragflow_sdk import RAGFlow
+// Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-from app.api.monitor import monitor
-from app.ragflow.rag_config import _load_ragflow_env
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
 
-// 模块级复用 RAGFlow 客户端，避免每次工具调用都重新初始化 SDK 对象
-api_key, configuration:{ baseURL: _load_ragflow_env()
-ragflow_client = RAGFlow(apiKey:api_key, configuration:{ baseURL:base_url)
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
 
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
 
-// @tool 会把函数签名和 docstring 暴露给 DeepAgents，模型据此决定是否调用以及如何填参
-// tool(...)
-function get_assistant_list(): str {
-    /* 
-    查询 RAGFlow 中有哪些聊天助手，以及每个助手关联了哪些知识库
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
 
-    作用：让模型先了解“哪个助手能回答哪类内部文档问题”，再决定后续要向哪个助手提问。
-    调用 create_ask_delete 之前，应先调用本工具确认助手名称。
-    :return: 有助手时返回助手名称、功能介绍、关联知识库；无助手或异常时返回中文提示
-     */
-    // 埋点：工具被调用后，前端可以展示当前正在查询 RAGFlow 助手列表
-    monitor.report_tool(tool_name="ragflow聊天助手列表查询工具：get_assistant_list")
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
 
-    try {
-        // list_chats 查询的是 RAGFlow 的 Chat 层，不是 Dataset 层
-        // Chat 负责对外问答，Dataset 只负责承载文档
-        chat_list = ragflow_client.list_chats()
-        if (not chat_list) {
-            return "没有任何可用助手"
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
 
-        // 把每个助手的名称、描述和绑定知识库拼成模型容易阅读的路由信息
-        count_chat_info = ""
-        for (const chat of chat_list) {
-            // 不同版本 SDK 字段可能为空，这里用 getattr 兼容没有绑定知识库的助手
-            dataset_names = getattr(chat, "kb_names", []) || []
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
 
-            count_chat_info += `助手名称:${chat.name};功能介绍：${chat.description}; 关联的知识库：${'、'.join(dataset_names)} \n`
-        return count_chat_info
-    } catch (e) {
-        return `查询助手信息异常，无可用助手,异常信息:${str(e)}`
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
 
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
 
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 8.3 为什么返回字符串
@@ -977,7 +1723,7 @@ function get_assistant_list(): str {
 
 ## 9、工具二：create_ask_delete
 
-项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.ts`
+项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.py`
 
 ### 9.1 工具作用
 
@@ -1013,71 +1759,128 @@ flowchart TD
 下面代码沿用前面定义好的 `ragflow_client`、`monitor` 和 `@tool`。
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
+/**
+ * Maps to LangGraph tool-calling agent pattern
+ * (course chapters 21-24: agent loop as a graph)
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { Annotation, END, START, StateGraph, messagesStateReducer } from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { addNumberTool, getWeatherTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-// tool(...)
-function create_ask_delete(chat_name, question): str {
-    /* 
-    向某个 RAGFlow 聊天助手创建临时会话并完成一次提问
+const tools = [addNumberTool, getWeatherTool];
+const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
+void toolsByName;
 
-    注意：调用此工具之前，必须先调用 get_assistant_list，明确可用助手名称和助手能力边界。
-    :param chat_name: 助手名称，必须来自 get_assistant_list 返回结果
-    :param question: 本次提问的问题
-    :return: RAGFlow 返回的回答文本；异常时返回中文错误提示
-     */
-    // 埋点：记录目标助手和问题，便于前端展示当前知识库检索动作
-    monitor.report_tool(
-        tool_name="ragflow提问助手工具：create_ask_delete",
-        args={"chat_name": chat_name, "question": question},
-    )
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 
-    try {
-        // 先按名称找到 Chat 对象；真正提问时还需要在 Chat 下创建 Session
-        chats = ragflow_client.list_chats(name=chat_name)
-        use_chat = chats[0]
+async function agentNode(state: typeof AgentState.State) {
+  const model = createChatModel(0).bindTools(tools);
+  const response = await model.invoke([
+    new SystemMessage(
+      "你是工具增强助手。需要计算或查天气时必须调用工具，不要编造。",
+    ),
+    ...state.messages,
+  ]);
+  return { messages: [response] };
+}
 
-        // 每次工具调用只创建一个临时会话，避免多轮上下文污染当前问题
-        session = use_chat.create_session(name="temp_session_ask")
+async function toolNode(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (!(last instanceof AIMessage) || !last.tool_calls?.length) {
+    return { messages: [] };
+  }
 
-        // SDK 暂未直接封装当前流式接口，这里通过底层 post 调用 Chat completions API
-        response = ragflow_client.post(
-            `/chats/${use_chat.id}/completions`,
-            {
-                "messages": [{"role": "user", "content": question}],
-                "stream": true,
-                "session_id": session.id,
-            },
-            stream=true,
-        )
-        result = ""
-        for (const line of response.iter_lines(decode_unicode=true)) {
-            if (not line) {
-                continue
+  const outputs: ToolMessage[] = [];
+  for (const call of last.tool_calls) {
+    let observation: string;
+    if (call.name === "add_number") {
+      observation = String(
+        await addNumberTool.invoke(call.args as { a: number; b: number }),
+      );
+    } else if (call.name === "get_weather") {
+      observation = String(
+        await getWeatherTool.invoke(call.args as { city: string }),
+      );
+    } else {
+      observation = `Unknown tool: ${call.name}`;
+    }
+    outputs.push(
+      new ToolMessage({
+        content: observation,
+        tool_call_id: call.id ?? call.name,
+      }),
+    );
+  }
+  return { messages: outputs };
+}
 
-            // RAGFlow 流式返回遵循 SSE 风格：每行以 data: 开头，[DONE] 表示结束
-            line = line.removeprefix("data:").strip()
-            if (line == "[DONE]") {
-                break
-            data = json.loads(line)
-            chunk_data = data.get("data")
-            if (not isinstance(chunk_data, dict)) {
-                continue
-            answer = chunk_data.get("answer")
-            if (answer) {
-                // 部分流式片段会返回“截至当前的完整答案”，部分会返回增量内容
-                // 这里兼容两种情况，尽量避免重复拼接
-                if (answer.startswith(result)) {
-                    result = answer
-                } else if (not result.startswith(answer)) {
-                    result += answer
+function shouldContinue(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (last instanceof AIMessage && last.tool_calls?.length) {
+    return "tools";
+  }
+  return END;
+}
 
-        // 临时会话只用于本次工具调用，查询结束后删除，避免 RAGFlow 页面堆积无用会话
-        use_chat.delete_sessions(ids=[session.id])
-        return result
-    } catch (e) {
-        return `提问失败，错误原因：${str(e)}`
+function buildGraph() {
+  return new StateGraph(AgentState)
+    .addNode("agent", agentNode)
+    .addNode("tools", toolNode)
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", shouldContinue, {
+      tools: "tools",
+      [END]: END,
+    })
+    .addEdge("tools", "agent")
+    .compile();
+}
 
+async function main() {
+  printRunHeader("11-langgraph-tool-agent | manual ReAct graph");
 
+  // tiny local tool to show schema flexibility
+  const echo = tool(async ({ text }) => `echo:${text}`, {
+    name: "echo",
+    description: "Echo text",
+    schema: z.object({ text: z.string() }),
+  });
+  void echo;
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("请计算 8+15，并告诉我北京天气，最后中文总结。"),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}]`, msg.content);
+    if (msg instanceof AIMessage && msg.tool_calls?.length) {
+      console.log(" tool_calls:", JSON.stringify(msg.tool_calls, null, 2));
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 ### 9.4 流式结果为什么要做去重兼容
@@ -1111,13 +1914,124 @@ function create_ask_delete(chat_name, question): str {
 所以实际代码用了一个兼容写法：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-if (answer.startswith(result)) {
-    result = answer
-} else if (not result.startswith(answer)) {
-    result += answer
+// Real TypeScript from repo: examples/09-agent/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/12-agent
+ * Python refs: AgentSmartSelectV1.0.py, AgentReact.py
+ *
+ * Modern LangChain JS path: createReactAgent (tool-calling ReAct loop).
+ */
+import { HumanMessage } from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { basicTools } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const PRODUCT_DATABASE: Record<
+  string,
+  Array<{ id: string; name: string; popularity: number; price: number }>
+> = {
+  无线耳机: [
+    { id: "WH-1000XM5", name: "索尼 WH-1000XM5", popularity: 95, price: 299 },
+    { id: "QC45", name: "Bose QuietComfort 45", popularity: 88, price: 329 },
+  ],
+  游戏鼠标: [
+    { id: "GPW", name: "罗技 G Pro 无线", popularity: 90, price: 129 },
+    { id: "VIPER", name: "雷蛇 Viper V2 Pro", popularity: 87, price: 149 },
+  ],
+};
 
+const INVENTORY: Record<string, { stock: number; location: string }> = {
+  "WH-1000XM5": { stock: 10, location: "仓库-A" },
+  QC45: { stock: 0, location: "仓库-B" },
+  GPW: { stock: 8, location: "仓库-C" },
+  VIPER: { stock: 12, location: "仓库-A" },
+};
+
+const searchProductsTool = tool(
+  async ({ query }) => {
+    const category = Object.keys(PRODUCT_DATABASE).find((c) => query.includes(c));
+    if (!category) return `未找到与「${query}」匹配的产品类别`;
+    const items = [...PRODUCT_DATABASE[category]].sort(
+      (a, b) => b.popularity - a.popularity,
+    );
+    return items
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.name} (ID:${p.id}) 热度${p.popularity} ￥${p.price}`,
+      )
+      .join("\n");
+  },
+  {
+    name: "search_products",
+    description: "按类别搜索产品，如无线耳机、游戏鼠标",
+    schema: z.object({ query: z.string() }),
+  },
+);
+
+const checkInventoryTool = tool(
+  async ({ productId }) => {
+    const info = INVENTORY[productId];
+    if (!info) return `未找到产品ID: ${productId}`;
+    const status = info.stock > 0 ? "有库存" : "缺货";
+    return `${productId}: ${status} (${info.stock}) @ ${info.location}`;
+  },
+  {
+    name: "check_inventory",
+    description: "根据产品 ID 查询库存",
+    schema: z.object({ productId: z.string() }),
+  },
+);
+
+async function runMathWeatherAgent() {
+  printRunHeader("09-agent | tool agent (math + weather)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: basicTools,
+  });
+
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage("请计算 45+17，并查询深圳天气，最后用中文给一个简短总结。"),
+    ],
+  });
+
+  const last = result.messages[result.messages.length - 1];
+  console.log("[final]", last.content);
+}
+
+async function runReactShopAgent() {
+  printRunHeader("09-agent | ReAct shop agent (search + inventory)");
+  const agent = createReactAgent({
+    llm: createChatModel(0),
+    tools: [searchProductsTool, checkInventoryTool],
+  });
+
+  const result = await agent.invoke({
+    messages: [
+      new HumanMessage(
+        "帮我找最受欢迎的无线耳机，并检查第一名的库存，用中文给出购买建议。",
+      ),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    const role = msg.getType?.() ?? msg.constructor.name;
+    console.log(`\n[${role}]`, msg.content);
+  }
+}
+
+async function main() {
+  await runMathWeatherAgent();
+  await runReactShopAgent();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 如果新片段已经包含旧结果，就用新片段覆盖；如果新片段是增量内容，就继续拼接。这样可以尽量避免把“根据”“根据文档”“根据文档内容”重复拼成一长串。
@@ -1201,35 +2115,139 @@ RAGFlow 子智能体查到的是内部资料。它应该按提问轮次保留原
 
 ## 11、组装 knowledge_base_agent
 
-项目对应文件路径：`deepsearch-agents/app/agent/subagents/knowledge_base_agent.ts`
+项目对应文件路径：`deepsearch-agents/app/agent/subagents/knowledge_base_agent.py`
 
 代码如下：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-/* 
-RAGFlow 知识库子智能体配置模块
-
-将 app/prompt/prompts.yml 中的 ragflow 配置与 RAGFlow 工具组装成
-DeepAgents 可识别的字典式子智能体。主智能体后续会根据 description
-决定是否把企业内部非结构化文档查询任务分派给它。
+// Real TypeScript from repo: examples/14-mcp/client-agent.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/11-mcp/McpClientAgent.py
+ *
+ * Flow:
+ * 1) spawn local MCP server over stdio
+ * 2) list MCP tools
+ * 3) wrap tools as LangChain tools
+ * 4) run createReactAgent once with a user question
  */
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { HumanMessage } from "@langchain/core/messages";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
-from app.agent.prompts import sub_agents_content
-from app.tools.ragflow_tools import create_ask_delete, get_assistant_list
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const serverPath = join(__dirname, "server.ts");
 
-
-// RAGFlow 子智能体处理内部非结构化文档，与网络搜索助手、数据库查询助手形成互补
-// 它遵循“先查助手列表 -> 再向指定助手提问”的工作顺序
-// tools 列表声明该子智能体可以发现知识库助手，并发起一次性临时会话查询
-knowledge_base_agent = {
-    "name": sub_agents_content["ragflow"]["name"],
-    "description": sub_agents_content["ragflow"]["description"],
-    "system_prompt": sub_agents_content["ragflow"]["system_prompt"],
-    "tools": [get_assistant_list, create_ask_delete],
+function jsonSchemaToZod(inputSchema: unknown): z.ZodObject<z.ZodRawShape> {
+  const schema = (inputSchema ?? {}) as {
+    type?: string;
+    properties?: Record<string, { type?: string; description?: string }>;
+    required?: string[];
+  };
+  const shape: z.ZodRawShape = {};
+  const required = new Set(schema.required ?? []);
+  for (const [key, prop] of Object.entries(schema.properties ?? {})) {
+    let field: z.ZodTypeAny =
+      prop.type === "number" || prop.type === "integer"
+        ? z.number()
+        : prop.type === "boolean"
+          ? z.boolean()
+          : z.string();
+    if (prop.description) field = field.describe(prop.description);
+    if (!required.has(key)) field = field.optional();
+    shape[key] = field;
+  }
+  return z.object(shape);
 }
 
+function textFromMcpResult(result: {
+  content?: Array<{ type: string; text?: string }>;
+}): string {
+  if (!result.content?.length) return JSON.stringify(result);
+  return result.content
+    .map((c) => (c.type === "text" ? (c.text ?? "") : JSON.stringify(c)))
+    .join("\n");
+}
 
+async function main() {
+  printRunHeader("14-mcp | MCP server tools -> LangChain Agent");
+
+  const transport = new StdioClientTransport({
+    command: process.platform === "win32" ? "npx.cmd" : "npx",
+    args: ["tsx", serverPath],
+    stderr: "pipe",
+  });
+
+  const client = new Client({ name: "mcp-demo-client", version: "0.1.0" });
+  await client.connect(transport);
+
+  try {
+    const listed = await client.listTools();
+    console.log(
+      "MCP tools:",
+      listed.tools.map((t) => t.name).join(", ") || "(none)",
+    );
+
+    const resources = await client.listResources();
+    console.log(
+      "MCP resources:",
+      resources.resources.map((r) => r.uri).join(", ") || "(none)",
+    );
+
+    const lcTools = listed.tools.map((mcpTool) => {
+      const schema = jsonSchemaToZod(mcpTool.inputSchema);
+      return new DynamicStructuredTool({
+        name: mcpTool.name,
+        description: mcpTool.description || mcpTool.name,
+        schema,
+        func: async (input) => {
+          const result = await client.callTool({
+            name: mcpTool.name,
+            arguments: input as Record<string, unknown>,
+          });
+          return textFromMcpResult(
+            result as { content?: Array<{ type: string; text?: string }> },
+          );
+        },
+      });
+    });
+
+    if (!lcTools.length) {
+      throw new Error("No MCP tools available");
+    }
+
+    const agent = createReactAgent({
+      llm: createChatModel(0),
+      tools: lcTools,
+    });
+
+    const question =
+      process.argv.slice(2).join(" ") ||
+      "请计算 19+26，并查询上海天气，用中文简短总结。";
+    console.log("\n[question]", question);
+
+    const result = await agent.invoke({
+      messages: [new HumanMessage(question)],
+    });
+
+    const last = result.messages[result.messages.length - 1];
+    console.log("\n[final]", last.content);
+  } finally {
+    await client.close();
+    await transport.close();
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 到这里，三个子智能体就都准备好了：
@@ -1248,26 +2266,26 @@ knowledge_base_agent = {
 
 ```text
 app/prompt/prompts.yml
-  -> app/agent/prompts.ts
+  -> app/agent/prompts.py
       -> sub_agents_content
 
-app/ragflow/rag_config.ts
+app/ragflow/rag_config.py
   -> _load_ragflow_env
 
-app/ragflow/knowledge_demo.ts
+app/ragflow/knowledge_demo.py
   -> create_knowledge_base
   -> upload_file_to_knowledge_base
 
-app/tools/ragflow_tools.ts
+app/tools/ragflow_tools.py
   -> get_assistant_list
   -> create_ask_delete
 
-app/agent/subagents/knowledge_base_agent.ts
+app/agent/subagents/knowledge_base_agent.py
   -> name / description / system_prompt
   -> tools=[get_assistant_list, create_ask_delete]
 ```
 
-`prompts.yml` 管提示词和描述，`rag_config.ts` 管连接配置，`knowledge_demo.ts` 演示知识库和文件操作，`ragflow_tools.ts` 管真正注册给 Agent 的工具，`knowledge_base_agent.ts` 只负责把配置和工具组装起来。
+`prompts.yml` 管提示词和描述，`rag_config.py` 管连接配置，`knowledge_demo.py` 演示知识库和文件操作，`ragflow_tools.py` 管真正注册给 Agent 的工具，`knowledge_base_agent.py` 只负责把配置和工具组装起来。
 
 这也是本项目一直保持的写法：
 
@@ -1286,11 +2304,174 @@ app/agent/subagents/knowledge_base_agent.ts
 ### 12.1 测试助手列表
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-if (__name__ == "__main__") {
-    console.log(get_assistant_list.invoke({}))
+// Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
+/**
+ * Maps to: 案例与源码-3-LangGraph框架/08-multi_agent
+ * Python refs: SupervisorV0.3/V1.0.py, SupervisorHandoff.py
+ *
+ * Teaching version of supervisor + specialist workers (with step guard).
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { getWeatherTool, searchPolicyTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const RouteSchema = z.object({
+  next: z.enum(["weather", "policy", "FINISH"]),
+  reason: z.string(),
+});
 
+const MultiAgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_prev, next) => next,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (prev, next) => Array.from(new Set([...prev, ...next])),
+    default: () => [],
+  }),
+});
+
+async function supervisorNode(state: typeof MultiAgentState.State) {
+  // Safety: prevent infinite supervisor loops in demos.
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：信息已足够，结束本轮调度。")],
+    };
+  }
+
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是主管 Agent，只负责路由。",
+        "weather: 天气相关",
+        "policy: 公司制度/报销/请假",
+        "FINISH: 已有足够答案",
+        `已访问专家: ${state.visited.join(", ") || "无"}`,
+        "不要重复已访问专家。",
+      ].join("\n"),
+    ),
+    ...state.messages,
+  ]);
+
+  // Avoid re-entering the same worker.
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) {
+    next = "FINISH";
+  }
+
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
+
+async function weatherNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "");
+  const cityMatch = text.match(/北京|上海|深圳|杭州|广州/)?.[0] ?? "北京";
+  const weather = await getWeatherTool.invoke({ city: cityMatch });
+  return {
+    next: "supervisor",
+    visited: ["weather"],
+    messages: [new AIMessage(`天气专员：${cityMatch} => ${weather}`)],
+  };
+}
+
+async function policyNode(state: typeof MultiAgentState.State) {
+  const lastHuman = [...state.messages]
+    .reverse()
+    .find((m) => m.getType() === "human");
+  const text = String(lastHuman?.content ?? "报销");
+  const keyword = /请假|加班|报销|设备/.exec(text)?.[0] ?? "报销";
+  const policy = await searchPolicyTool.invoke({ keyword });
+
+  const model = createChatModel(0);
+  const polished = await model.invoke([
+    new SystemMessage("你是制度专员，把检索结果整理成员工可执行答复。"),
+    new HumanMessage(`用户问题：${text}\n检索结果：${policy}`),
+  ]);
+
+  return {
+    next: "supervisor",
+    visited: ["policy"],
+    messages: [new AIMessage(`制度专员：${polished.content}`)],
+  };
+}
+
+function routeFromSupervisor(state: typeof MultiAgentState.State) {
+  if (state.next === "weather") return "weather";
+  if (state.next === "policy") return "policy";
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(MultiAgentState)
+    .addNode("supervisor", supervisorNode)
+    .addNode("weather", weatherNode)
+    .addNode("policy", policyNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", routeFromSupervisor, {
+      weather: "weather",
+      policy: "policy",
+      [END]: END,
+    })
+    .addEdge("weather", "supervisor")
+    .addEdge("policy", "supervisor")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("12-langgraph-multi-agent | supervisor pattern");
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("我想了解差旅报销规则，另外顺便说下北京今天天气。"),
+    ],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
+
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 期望看到类似结果：
@@ -1309,17 +2490,128 @@ if (__name__ == "__main__") {
 ### 12.2 测试临时会话提问
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
-if (__name__ == "__main__") {
-    result = create_ask_delete.invoke(
-        {
-            "chat_name": "电商行业助手",
-            "question": "如果我是一个电商平台运营负责人，应该怎样制定 2026 年 AI 应用路线图？",
-        }
-    )
-    console.log(result)
+// Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
+/**
+ * Maps to LangGraph tool-calling agent pattern
+ * (course chapters 21-24: agent loop as a graph)
+ */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { Annotation, END, START, StateGraph, messagesStateReducer } from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../src/shared/llm.js";
+import { addNumberTool, getWeatherTool } from "../../src/shared/tools.js";
+import { printRunHeader } from "../../src/shared/env.js";
 
+const tools = [addNumberTool, getWeatherTool];
+const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
+void toolsByName;
 
+const AgentState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
+
+async function agentNode(state: typeof AgentState.State) {
+  const model = createChatModel(0).bindTools(tools);
+  const response = await model.invoke([
+    new SystemMessage(
+      "你是工具增强助手。需要计算或查天气时必须调用工具，不要编造。",
+    ),
+    ...state.messages,
+  ]);
+  return { messages: [response] };
+}
+
+async function toolNode(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (!(last instanceof AIMessage) || !last.tool_calls?.length) {
+    return { messages: [] };
+  }
+
+  const outputs: ToolMessage[] = [];
+  for (const call of last.tool_calls) {
+    let observation: string;
+    if (call.name === "add_number") {
+      observation = String(
+        await addNumberTool.invoke(call.args as { a: number; b: number }),
+      );
+    } else if (call.name === "get_weather") {
+      observation = String(
+        await getWeatherTool.invoke(call.args as { city: string }),
+      );
+    } else {
+      observation = `Unknown tool: ${call.name}`;
+    }
+    outputs.push(
+      new ToolMessage({
+        content: observation,
+        tool_call_id: call.id ?? call.name,
+      }),
+    );
+  }
+  return { messages: outputs };
+}
+
+function shouldContinue(state: typeof AgentState.State) {
+  const last = state.messages[state.messages.length - 1];
+  if (last instanceof AIMessage && last.tool_calls?.length) {
+    return "tools";
+  }
+  return END;
+}
+
+function buildGraph() {
+  return new StateGraph(AgentState)
+    .addNode("agent", agentNode)
+    .addNode("tools", toolNode)
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", shouldContinue, {
+      tools: "tools",
+      [END]: END,
+    })
+    .addEdge("tools", "agent")
+    .compile();
+}
+
+async function main() {
+  printRunHeader("11-langgraph-tool-agent | manual ReAct graph");
+
+  // tiny local tool to show schema flexibility
+  const echo = tool(async ({ text }) => `echo:${text}`, {
+    name: "echo",
+    description: "Echo text",
+    schema: z.object({ text: z.string() }),
+  });
+  void echo;
+
+  const app = buildGraph();
+  const result = await app.invoke({
+    messages: [
+      new HumanMessage("请计算 8+15，并告诉我北京天气，最后中文总结。"),
+    ],
+  });
+
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}]`, msg.content);
+    if (msg instanceof AIMessage && msg.tool_calls?.length) {
+      console.log(" tool_calls:", JSON.stringify(msg.tool_calls, null, 2));
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 如果页面里能回答，但代码里回答失败，重点检查：

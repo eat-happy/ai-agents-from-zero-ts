@@ -72,6 +72,16 @@ npm run shop:dev
 # http://localhost:3007
 ```
 
+## 代码策略（重要）
+
+**不再使用 Python 机翻。** 章节正文中的代码块来自：
+
+- `examples/**` 精校示例
+- `book/cases-*/**` 精校案例
+- `apps/shop-query-agent/**` 电商问数 Demo
+
+中文讲解保留原教程；要跑通请优先看章节顶部的「TypeScript 可运行示例」和 [book/POLISHED-CASES.md](book/POLISHED-CASES.md)。
+
 ## 迁移覆盖范围
 
 | 原仓库内容 | TS 译本状态 |

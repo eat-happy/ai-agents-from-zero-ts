@@ -1,9 +1,49 @@
 # 3 - 基于 Coze&Dify 平台的智能体开发
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
+
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
 
 
 ---
@@ -287,7 +327,7 @@ https://agent.xfyun.cn/home
 
 工作流最适合的场景，可以直接概括成一句话：**任务步骤大致确定，希望过程可见、可控、可复用时，优先工作流。**
 
-这也是为什么很多真实项目并不是“先做一个很聪明的 Agent”，而是先把稳定链路搭成工作流。后面你在本章案例区，以及 [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md)、[第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md) 里会不断看到这一点。
+这也是为什么很多真实项目并不是“先做一个很聪明的 Agent”，而是先把稳定链路搭成工作流。后面你在本章案例区，以及 [第 4 章 Python 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md)、[第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md) 里会不断看到这一点。
 
 ---
 
@@ -914,9 +954,9 @@ Agent 日志如下：
 
 **1、案例：**（以 Coze 平台为例）
 
-案例 1：详细过程见 [Coze 案例：一键生成行业调研 PPT](cases-coze-dify/3.1-Coze案例：一键生成行业调研PPT/3.1-一键生成行业调研PPT.md)
+案例 1：详细过程见 [Coze 案例：一键生成行业调研 PPT](案例与源码-1-Coze&Dify工作流智能体/3.1-Coze案例：一键生成行业调研PPT/3.1-一键生成行业调研PPT.md)
 
-案例 2：详细过程见 [Coze 案例：复刻爆款视频](cases-coze-dify/3.2-Coze案例：复刻爆款视频/3.2-复刻爆款视频.md)
+案例 2：详细过程见 [Coze 案例：复刻爆款视频](案例与源码-1-Coze&Dify工作流智能体/3.2-Coze案例：复刻爆款视频/3.2-复刻爆款视频.md)
 
 **2、是否可以发布到商店/模板**（以 Coze 平台为例）
 
@@ -938,23 +978,23 @@ Agent 日志如下：
 
 **项目简介**：商户运营管家是一个综合性的智能体实战项目，围绕商户日常运营中的**营销推广、客户服务、市场洞察**三大场景，在 Coze 与 Dify 平台上实现 6 个子案例。涵盖从海报生成、卖点提炼与文案脚本，到投诉分类与客服对话分析，再到行业调研与商品评论分析，帮助理解如何用工作流与智能体组合解决真实业务问题。各子案例可独立学习，也可串联成一套完整的「运营管家」能力矩阵。
 
-1、产品营销海报生成：[Coze](cases-coze-dify/3.3-Coze案例：产品营销海报生成/3.3-产品营销海报生成.md)
+1、产品营销海报生成：[Coze](案例与源码-1-Coze&Dify工作流智能体/3.3-Coze案例：产品营销海报生成/3.3-产品营销海报生成.md)
 
-2、客户投诉分类助手：[Dify](cases-coze-dify/3.5-Dify案例：客户投诉分类助手/3.5-客户投诉分类助手.md)
+2、客户投诉分类助手：[Dify](案例与源码-1-Coze&Dify工作流智能体/3.5-Dify案例：客户投诉分类助手/3.5-客户投诉分类助手.md)
 
-3、一键生成行业调研报告：[Dify](cases-coze-dify/3.4-Dify案例：一键生成行业调研报告/3.4-一键生成行业调研报告.md)
+3、一键生成行业调研报告：[Dify](案例与源码-1-Coze&Dify工作流智能体/3.4-Dify案例：一键生成行业调研报告/3.4-一键生成行业调研报告.md)
 
-4、客服对话记录分析：[Coze](cases-coze-dify/3.6-Coze案例：客服对话记录分析/3.6-客服对话记录分析-Coze.md) / [Dify](cases-coze-dify/3.7-Dify案例：客服对话记录分析/3.7-客服对话记录分析-Dify.md)
+4、客服对话记录分析：[Coze](案例与源码-1-Coze&Dify工作流智能体/3.6-Coze案例：客服对话记录分析/3.6-客服对话记录分析-Coze.md) / [Dify](案例与源码-1-Coze&Dify工作流智能体/3.7-Dify案例：客服对话记录分析/3.7-客服对话记录分析-Dify.md)
 
-5、商品评论分析：[Coze](cases-coze-dify/3.8-Coze案例：商品评论分析/3.8-商品评论分析-商品评论分析-Coze.md) / [Dify](cases-coze-dify/3.9-Dify案例：商品评论分析/3.9-商品评论分析-Dify.md)
+5、商品评论分析：[Coze](案例与源码-1-Coze&Dify工作流智能体/3.8-Coze案例：商品评论分析/3.8-商品评论分析-商品评论分析-Coze.md) / [Dify](案例与源码-1-Coze&Dify工作流智能体/3.9-Dify案例：商品评论分析/3.9-商品评论分析-Dify.md)
 
-6、商品营销卖点提炼：[Coze](cases-coze-dify/3.10-Coze案例：商品营销卖点提炼/3.10-商品营销卖点提炼-Coze.md)
+6、商品营销卖点提炼：[Coze](案例与源码-1-Coze&Dify工作流智能体/3.10-Coze案例：商品营销卖点提炼/3.10-商品营销卖点提炼-Coze.md)
 
 ---
 
-## 8、TypeScript / Node.js 调用 Dify 或 Coze 平台工作流
+## 8、Python 调用 Dify 或 Coze 平台工作流
 
-详见 [**第 4 章（TypeScript / Node.js 调用 Dify 工作流）**](4-Python调用Dify平台工作流.md) 与 [**第 5 章（TypeScript / Node.js 调用 Coze 工作流）**](5-Python调用Coze平台工作流.md)。
+详见 [**第 4 章（Python 调用 Dify 工作流）**](4-Python调用Dify平台工作流.md) 与 [**第 5 章（Python 调用 Coze 工作流）**](5-Python调用Coze平台工作流.md)。
 
 ---
 
@@ -1106,6 +1146,6 @@ https://chatgpt.com/#pricing
 
 **建议下一步：**
 
-- 如果你想把平台工作流真正接进代码，继续看 [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md) 和 [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
+- 如果你想把平台工作流真正接进代码，继续看 [第 4 章 Python 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md) 和 [第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
 - 如果你想继续补齐“平台智能体背后的 Agent 原理”，进入 [第 21 章 Agent 智能体](21-Agent智能体.md)。
-- 如果你想继续做平台项目实战，可以在 Coze 或 Dify 上选一个案例（如深夜情感主持、北京旅行助手、商品评论分析）从头跟做一遍并发布；若要做自动化流水线，可进入 [工作流案例](cases-coze-dify/3.1-Coze案例：一键生成行业调研PPT/3.1-一键生成行业调研PPT.md) 学习。
+- 如果你想继续做平台项目实战，可以在 Coze 或 Dify 上选一个案例（如深夜情感主持、北京旅行助手、商品评论分析）从头跟做一遍并发布；若要做自动化流水线，可进入 [工作流案例](案例与源码-1-Coze&Dify工作流智能体/3.1-Coze案例：一键生成行业调研PPT/3.1-一键生成行业调研PPT.md) 学习。

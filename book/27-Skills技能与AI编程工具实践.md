@@ -1,9 +1,49 @@
 # 27 - Skills 技能与 AI 编程工具实践
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
+
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
 
 
 ---
@@ -237,24 +277,24 @@ description: 这个技能做什么，以及什么情况下应该使用它。
 ```text
 code-reviewer/
   SKILL.md
-  package.json
+  requirements.txt
   references/
     java-style-guide.md
     security-checklist.md
   scripts/
-    run_static_check.ts
+    run_static_check.py
   assets/
     review-template.md
 ```
 
-![Skill 扩展目录结构：code-reviewer 技能包由 SKILL.md、package.json、references、scripts 与 assets 组成，并由 Agent 按需加载](images/27/27-3-4-1.png)
+![Skill 扩展目录结构：code-reviewer 技能包由 SKILL.md、requirements.txt、references、scripts 与 assets 组成，并由 Agent 按需加载](images/27/27-3-4-1.png)
 
 各目录职责如下：
 
 | 路径               | 作用                           |
 | ------------------ | ------------------------------ |
 | `SKILL.md`         | 技能说明、触发规则、执行步骤   |
-| `package.json` | 这个技能需要的 npm 依赖     |
+| `requirements.txt` | 这个技能需要的 Python 依赖     |
 | `references/`      | 技能需要参考的文档、规范和模板 |
 | `scripts/`         | 技能执行时可能调用的脚本       |
 | `assets/`          | 样例、图片、表格、素材文件     |
@@ -271,7 +311,7 @@ code-reviewer/
 模型并不会凭空知道怎么用这些脚本和资源。需要在 `SKILL.md` 里写清楚：
 
 ```markdown
-当需要做静态检查时，运行 `scripts/run_static_check.ts`。
+当需要做静态检查时，运行 `scripts/run_static_check.py`。
 当需要判断 Java 代码风格时，参考 `references/java-style-guide.md`。
 最终输出格式参考 `assets/review-template.md`。
 ```
@@ -393,7 +433,7 @@ description: 当用户要求审查 Markdown 技术教程的结构、标题层级
 | ----------------- | -------------------------------- | -------------------------------------------- |
 | Prompt            | 当前任务的一次性要求             | “把这段文字改成更口语化”                     |
 | Rules / AGENTS.md | 几乎每次都相关的项目规则         | “本项目用 pnpm”“API 返回结构统一”            |
-| Memory            | 历史事实、用户偏好、长期状态     | “用户喜欢简洁回答”“这个项目已经迁到 Next.js / Hono / Fastify” |
+| Memory            | 历史事实、用户偏好、长期状态     | “用户喜欢简洁回答”“这个项目已经迁到 FastAPI” |
 | Skill             | 特定任务才需要的流程、模板和资源 | “代码审查流程”“周报模板”“SQL 生成规范”       |
 
 一句话速记：
@@ -457,7 +497,7 @@ Skill 是一个能力包，可以挂在主 Agent 或 Subagent 上。
 
 | 要点         | 示例                                             |
 | ------------ | ------------------------------------------------ |
-| 做什么       | 审查 Python / Next.js / Hono / Fastify 后端代码                   |
+| 做什么       | 审查 Python / FastAPI 后端代码                   |
 | 什么时候用   | 当用户要求 code review、查找 bug 或安全风险时    |
 | 处理什么输入 | diff、PR、文件路径、代码片段                     |
 | 不要太泛     | 不要写成“帮助写代码”这种所有场景都可能匹配的描述 |
@@ -602,8 +642,8 @@ Cursor 常见规则目录：
 
 ```markdown
 ---
-description: 当修改 Next.js / Hono / Fastify 接口、Schema 或错误处理逻辑时使用。
-globs: api/**/*.ts
+description: 当修改 FastAPI 接口、Schema 或错误处理逻辑时使用。
+globs: api/**/*.py
 alwaysApply: false
 ---
 
@@ -652,7 +692,7 @@ Claude Code 对 Agent Skills 的支持更接近标准 `SKILL.md` 目录模型。
     api-debugger/
       SKILL.md
       scripts/
-        check_openapi.ts
+        check_openapi.py
 ```
 
 Claude Code 的 Skill 是模型自动触发的。你不需要像 slash command 那样手动输入命令。关键仍然是 `description` 写得足够清楚。
@@ -666,27 +706,34 @@ DeepAgents 的 Skills 更偏框架能力。它会从指定目录读取 `SKILL.md
 在 DeepAgents 里，常见配置思路是：
 
 ```typescript
-// [TS-PORT] Auto-migrated from Python example for TypeScript track. Prefer examples/ and POLISHED-CASES when APIs differ.
+// Real TypeScript from repo: examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
 
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
 
-from deepagents import create_deep_agent
-from deepagents.backends.filesystem import FilesystemBackend
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
 
-current_dir = Path(__file__).parent
+  console.log("\n[AI]");
+  console.log(res.content);
+}
 
-backend = FilesystemBackend(
-    root_dir=str(current_dir),
-    virtual_mode=true,
-)
-
-agent = create_deep_agent(
-    model=llm,
-    backend=backend,
-    skills=[str(current_dir / "skills")],
-    system_prompt="你是一个可以按需使用 Skills 的智能助手。",
-)
-
-
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
 ```
 
 这里要分清三个路径：

@@ -1,9 +1,49 @@
 # 9 - LangChain 概述与架构
 
-
 <!-- TS-TRACK-BANNER -->
-> **TypeScript 轨道说明**：本章由 [ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 原文迁移。中文概念保留；代码示例已改为 **TypeScript / LangChain.js / LangGraph.js**。
-> 可运行精校示例见仓库根目录 `examples/` 与 `apps/shop-query-agent/`。自动迁移的代码块若与最新 SDK API 有差异，以可运行示例为准。
+> **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
+> 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
+
+
+## TypeScript 可运行示例（推荐）
+
+本章优先对照仓库真实文件：`examples/01-helloworld/index.ts`
+
+```typescript
+// examples/01-helloworld/index.ts
+/**
+ * Maps to: 案例与源码-2-LangChain框架/01-helloworld
+ * Python refs: LangChainV1.0.py, StandardDesc.py
+ */
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel } from "../../src/shared/llm.js";
+import { env, printRunHeader } from "../../src/shared/env.js";
+
+async function main() {
+  printRunHeader("01-helloworld | Chat model hello");
+  console.log("model:", env.model);
+  console.log("baseURL:", env.baseURL ?? "(OpenAI default)");
+
+  const model = createChatModel(0.2);
+  const res = await model.invoke([
+    new SystemMessage("你是简洁的中文助教，用 3 句话解释概念。"),
+    new HumanMessage("什么是 AI Agent？它和普通 Chatbot 有什么区别？"),
+  ]);
+
+  console.log("\n[AI]");
+  console.log(res.content);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```bash
+npx tsx examples/01-helloworld/index.ts
+```
+
 
 
 ---
@@ -30,7 +70,7 @@
 
 一句话来说，**LangChain = 用代码把大模型和外部世界连接起来的应用开发框架。**
 
-其中，**Lang** 指 Language Model，**Chain** 指把多个环节串起来形成流程。最早的 LangChain 确实以“链式调用”闻名，但发展到今天，它已经不只是“链”，而是围绕 **Agent、RAG、工具调用、状态管理、可观测性** 形成了一整套生态。官方在发展历程中提到，LangChain 作为 npm 包公开发布于 **2022 年**，比 ChatGPT 正式发布还早约一个月，因此它几乎伴随了生成式 AI 应用开发的整个爆发期。
+其中，**Lang** 指 Language Model，**Chain** 指把多个环节串起来形成流程。最早的 LangChain 确实以“链式调用”闻名，但发展到今天，它已经不只是“链”，而是围绕 **Agent、RAG、工具调用、状态管理、可观测性** 形成了一整套生态。官方在发展历程中提到，LangChain 作为 Python 包公开发布于 **2022 年**，比 ChatGPT 正式发布还早约一个月，因此它几乎伴随了生成式 AI 应用开发的整个爆发期。
 
 LangChain 在 GitHub 上的热度变化如下图所示：
 
@@ -305,7 +345,7 @@ create_agent(模型、工具、提示等) → [Agent]
 | **主包内容**    | `langchain` 中内容很多，历史包袱重    | `langchain` 主包被精简，只聚焦核心能力   |
 | **旧能力去向**  | `LLMChain`、老 Retriever 等混在主包里 | 迁到 `langchain-classic`                 |
 | **底层运行时**  | 以前很多人只感受到“链”                | 现在 Agent 明确建立在 **LangGraph** 之上 |
-| **TypeScript 版本** | 老资料中常见 3.8 / 3.9                | 官方 1.x 要求 **Python 3.10+**           |
+| **Python 版本** | 老资料中常见 3.8 / 3.9                | 官方 1.x 要求 **Python 3.10+**           |
 
 这里有一个容易混淆的点：
 **并不是说 1.x 以后“链”就没用了，而是说很多旧式高层 Chain 类不再是官方推荐主线。**课程后面的 [第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md) 仍然是主线内容，因为“把多个步骤组合起来”的思想从来没有过时，只是实现方式从“某个现成 Chain 类”逐渐转向 **Runnable / LCEL / Graph**。
