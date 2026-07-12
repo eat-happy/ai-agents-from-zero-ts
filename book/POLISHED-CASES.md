@@ -11,13 +11,12 @@
 npm install
 cp .env.example .env   # 填写 OPENAI_API_KEY / BASE_URL / MODEL
 
-# 任选：
-npx tsx book/cases-langchain/01-helloworld/LangChainV1.0.ts
-npm run case:hello
-npm run case:tools
-npm run case:agent
-npm run case:graph
-npm run case:supervisor
+npx tsx book/cases-langgraph/03-state/DefState.ts
+npm run case:state
+npm run case:edge
+npm run case:stream
+npm run case:persist
+npm run case:prompt
 ```
 
 ## LangChain 案例（精校）
@@ -26,6 +25,11 @@ npm run case:supervisor
 |------|------|------|
 | `cases-langchain/01-helloworld/LangChainV1.0.ts` | 第 10 章 | ✅ |
 | `cases-langchain/01-helloworld/StandardDesc.ts` | 第 10 章 | ✅ |
+| `cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts` | 第 13 章 | ✅ |
+| `cases-langchain/04-prompt/prompt_templates/PromptTemplate_PartialVariables.ts` | 第 13 章 | ✅ |
+| `cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts` | 第 13 章 | ✅ |
+| `cases-langchain/04-prompt/chat_prompt_template/placeholder/ChatPromptTemplate_MessagesPlaceholder.ts` | 第 13 章 | ✅ |
+| `cases-langchain/04-prompt/invoke/LLM_Invoke_Stream_Batch.ts` | 第 11/13 章 | ✅ 需 API Key |
 | `cases-langchain/05_parser/StructuredOutput_Zod.ts` | 第 14 章 | ✅ |
 | `cases-langchain/06-lcel/LCEL_RunnableSequenceDemo.ts` | 第 15 章 | ✅ |
 | `cases-langchain/07-memory/Memory_InMemoryChatMessageHistory.ts` | 第 16 章 | ✅ |
@@ -44,6 +48,19 @@ npm run case:supervisor
 |------|------|------|
 | `cases-langgraph/01-helloworld/LangGraphHello.ts` | 第 22 章 | ✅ |
 | `cases-langgraph/01-helloworld/LangGraphLLM.ts` | 第 22 章 | ✅ |
+| `cases-langgraph/02-graph/BuildWholeGraphSummary.ts` | 第 22-23 章 | ✅ |
+| `cases-langgraph/03-state/DefState.ts` | 第 23 章 | ✅ |
+| `cases-langgraph/03-state/reducers/StateReducer_AddMessages.ts` | 第 23 章 | ✅ |
+| `cases-langgraph/03-state/reducers/StateReducer_Custom.ts` | 第 23 章 | ✅ |
+| `cases-langgraph/03-state/reducers/StateReducer_OperatorAdd.ts` | 第 23 章 | ✅ |
+| `cases-langgraph/04-node/DefNode.ts` | 第 24 章 | ✅ |
+| `cases-langgraph/05-edge/Edge_Conditional.ts` | 第 24 章 | ✅ |
+| `cases-langgraph/05-edge/Edge_ConditionalV2.ts` | 第 24 章 | ✅ |
+| `cases-langgraph/07-senior/streaming/StreamGraphState.ts` | 第 25 章 | ✅ |
+| `cases-langgraph/07-senior/streaming/StreamLLMTokens.ts` | 第 25 章 | ✅ 需 API Key |
+| `cases-langgraph/07-senior/state_persistence/MemoryPersistence.ts` | 第 25 章 | ✅ |
+| `cases-langgraph/07-senior/subgraph/SubGraphSimple.ts` | 第 25 章 | ✅ |
+| `cases-langgraph/07-senior/time_travel/TimeTravel.ts` | 第 25 章 | ✅ |
 | `cases-langgraph/08-multi_agent/SupervisorV1.0.ts` | 第 26 章 | ✅ |
 
 ## 根目录精校示例（始终推荐）
@@ -52,6 +69,6 @@ npm run case:supervisor
 
 ## 后续打磨优先级
 
-1. `cases-langgraph/03-state` ~ `07-senior`（状态、边、持久化、流式）
-2. `cases-langchain/04-prompt` 全量
-3. 电商问数 / 深度研搜项目代码级 TS 复刻（目前文档在 `book/projects`，可运行版在 `apps/shop-query-agent`）
+1. `cases-langgraph/06-specialApi`（Command / Send / RuntimeContext）
+2. `cases-langchain/04-prompt` 剩余细节样例（load_external 等）
+3. 电商问数 / 深度研搜项目代码级完整 TS 复刻

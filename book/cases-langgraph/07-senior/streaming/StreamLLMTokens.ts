@@ -1,76 +1,55 @@
 /**
- * Auto-ported from Python case for TypeScript track.
- * Source: cases-langgraph/07-senior/streaming/StreamLLMTokens.py
- * Prefer the curated runnable examples under /examples when APIs differ.
+ * 【精校可运行】流式输出 LLM token（第 25 章）
+ * 原 Python: StreamLLMTokens.py 教学意图
+ *
+ *   npx tsx book/cases-langgraph/07-senior/streaming/StreamLLMTokens.ts
  */
+import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { createChatModel } from "../../../../src/shared/llm.js";
 
-// [TS-PORT] 由原 Python 示例自动迁移，建议对照 examples/ 目录可运行版本精读
-/* 
-【案例】messages 流模式：从图中调用 LLM 的节点逐 token（或片段）推送输出，便于打字机效果。
+const ChatState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 
-对应教程章节：第 25 章 - LangGraph 高级特性 → 1、流式处理（Streaming）
+async function modelNode(state: typeof ChatState.State) {
+  const model = createChatModel(0.2);
+  const reply = await model.invoke(state.messages);
+  return { messages: [reply] };
+}
 
-知识点速览：
-- stream_mode="messages" 时，每次迭代一般为 (message_chunk, metadata)：chunk 为模型输出片段，metadata 标明节点等上下文。
-- 这个案例最适合用来建立“LangGraph Streaming 不只流状态，也能流模型输出”这层认知。
-- 流式消费侧通常关心 `chunk.content` 和 `metadata`；前者是输出片段，后者帮助你知道这些片段来自哪个节点。
-- 需配置环境变量（如 aliQwen-api）与网络；模型、base_url 按你本地教程为准。
- */
+async function main() {
+  const app = new StateGraph(ChatState)
+    .addNode("model", modelNode)
+    .addEdge(START, "model")
+    .addEdge("model", END)
+    .compile();
 
-import os
-from typing import TypedDict
+  // messages 模式：尽量拿到 token 级流（取决于模型/SDK）
+  process.stdout.write("[stream messages] ");
+  const stream = await app.stream(
+    { messages: [new HumanMessage("用一句话介绍 LangGraph 流式输出")] },
+    { streamMode: "messages" },
+  );
+  for await (const chunk of stream) {
+    // chunk 形态随版本可能是 [message, meta] 或对象
+    const msg = Array.isArray(chunk) ? chunk[0] : chunk;
+    const content = msg?.content ?? msg?.kwargs?.content ?? "";
+    if (content) process.stdout.write(String(content));
+  }
+  console.log("\n");
+}
 
-import { ChatOpenAI } from "@langchain/openai"
-import { StateGraph, Annotation } from "@langchain/langgraph", START
-
-import "dotenv/config"
-
-// dotenv/config loaded
-
-
-type State = {
-    query: string
-    answer: string
-
-
-function node(state: State) {
-    console.log("开始调用 node 节点")
-
-    model = new new ChatOpenAI(
-        model="qwen-plus",
-        
-        apiKey:process.env.aliQwen-api,
-        configuration: { baseURL:"https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
-
-    llm_result = model.invoke([("user", state["query"])])
-    console.log("llm invoke 结束", end="\n\n")
-
-    return {"answer": llm_result}
-
-
-function main() {
-    graph = (
-        StateGraph(state_schema=State).add_node(node).add_edge(START, "node").compile()
-    )
-
-    inputs = {"query": "帮我生成一个200字的小学生作文，主题为我的一天"}
-
-    // messages：从图内触发的大模型调用处流式输出；(chunk, metadata) 见官方文档
-    for (const chunk, _metadata of graph.stream(inputs, stream_mode="messages")) {
-        // console.log(`type of chunk:{type(chunk)}`)  # 调试时可打开
-        console.log(chunk.content, end="")
-        // console.log(chunk, end="")
-
-
-if (__name__ == "__main__") {
-    main()
-
-/* 
-【输出示例】
-(.venv) didilili@DidililiMacBook-Pro streaming % python3 StreamLLMTokens.py
-开始调用 node 节点
-我的一天  
-
-清晨，阳光悄悄爬上窗台，我伸个懒腰起床了！吃完妈妈做的香喷喷的煎蛋和牛奶，背上书包去上学。课堂上，我认真听讲，积极举手回答问题；课间和好朋友跳皮筋、讲故事，笑声像铃铛一样清脆。中午吃食堂的番茄炒蛋盖饭，暖暖的真好吃！放学后，我先完成作业，再陪小猫“团团”玩一会儿毛线球。晚饭后，我和爸爸一起读绘本，妈妈教我折了一只纸鹤，翅膀还微微翘着呢！临睡前，我刷牙洗脸，把小书包整理好，明天还要早起升旗呢！这一天像一颗甜甜的水果糖——有学习的酸、玩耍的甜、家人的暖，还有成长的光。我爱这充实又快乐的一天！（198字）llm invoke 结束
- */
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
