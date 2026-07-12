@@ -44,14 +44,13 @@
         color: var(--accent) !important;
         font-weight: 700;
       }
-      .cover-main {
-        color: #1c2430;
-      }
     </style>
   </head>
   <body>
     <div id="app">加载文档中...</div>
     <script>
+      // GitHub project pages live under /<repo>/
+      const REPO_BASE = "/ai-agents-from-zero-ts/";
       const UPSTREAM_IMAGES =
         "https://cdn.jsdelivr.net/gh/didilili/ai-agents-from-zero@main/images/";
 
@@ -60,11 +59,17 @@
         nameLink: "#/",
         repo: "https://github.com/eat-happy/ai-agents-from-zero-ts",
         homepage: "README.md",
-        basePath: "book/",
+        // Absolute basePath prevents nested-route path stacking on GitHub Pages
+        basePath: REPO_BASE + "book/",
         loadSidebar: true,
         subMaxLevel: 3,
         auto2top: true,
-        relativePath: true,
+        // IMPORTANT: must be false. With true, links like projects/foo.md are
+        // resolved relative to the current nested chapter and become 404s.
+        relativePath: false,
+        alias: {
+          "/.*/_sidebar.md": "/_sidebar.md",
+        },
         search: {
           paths: "auto",
           placeholder: "搜索章节...",
@@ -85,16 +90,14 @@
         plugins: [
           function (hook, vm) {
             hook.beforeEach(function (content) {
-              // 章节插图走原仓库 CDN，避免本仓库塞入 500MB+ 图片
+              // Chapter images from upstream CDN
               content = content.replace(
                 /\]\((?:\.\.\/)*images\//g,
                 "](" + UPSTREAM_IMAGES,
               );
-              // 去掉 GitHub 渲染专用的相对锚点噪声
               return content;
             });
             hook.doneEach(function () {
-              // 给标题补 TS 标识
               const h1 = document.querySelector(".markdown-section h1");
               if (h1 && !h1.querySelector(".ts-badge")) {
                 const badge = document.createElement("span");
