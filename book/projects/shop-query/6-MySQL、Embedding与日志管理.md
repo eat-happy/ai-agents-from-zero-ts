@@ -225,7 +225,8 @@ BAAI/bge-large-zh-v1.5
 TypeScript 轨道推荐写法（OpenAI 兼容 Embedding）：
 
 ```typescript
-// Real TypeScript from repo pattern: OpenAIEmbeddings + TEI/OpenAI-compatible baseURL
+// Real TypeScript from repo: apps/shop-query-agent pattern (OpenAIEmbeddings + TEI-compatible baseURL)
+// Also see: examples/08-embedding-rag/index.ts
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 export type EmbeddingConfig = {
