@@ -1,146 +1,127 @@
 /**
- * Auto-ported from Python case for TypeScript track.
- * Source: cases-langchain/11-mcp/McpClientAgent.py
- * Prefer the curated runnable examples under /examples when APIs differ.
+ * Maps to: 案例与源码-2-LangChain框架/11-mcp/McpClientAgent.py
+ *
+ * Flow:
+ * 1) spawn local MCP server over stdio
+ * 2) list MCP tools
+ * 3) wrap tools as LangChain tools
+ * 4) run createReactAgent once with a user question
  */
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { HumanMessage } from "@langchain/core/messages";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
+import { printRunHeader } from "../../../src/shared/env.js";
 
-// [TS-PORT] 由原 Python 示例自动迁移，建议对照 examples/ 目录可运行版本精读
-/* 
-【案例】基于 mcp.json + LangChain Agent 的 MCP 客户端（LLM + MCP 工具）
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const serverPath = join(__dirname, "McpServer.ts");
 
-对应教程章节：
-- 第 20 章 - MCP 模型上下文协议 → 6、案例实战：本地 MCP 天气服务与客户端
-- 第 21 章 - Agent 智能体 → 5、实操与案例（5.4 Agent + MCP）
+function jsonSchemaToZod(inputSchema: unknown): z.ZodObject<z.ZodRawShape> {
+  const schema = (inputSchema ?? {}) as {
+    type?: string;
+    properties?: Record<string, { type?: string; description?: string }>;
+    required?: string[];
+  };
+  const shape: z.ZodRawShape = {};
+  const required = new Set(schema.required ?? []);
+  for (const [key, prop] of Object.entries(schema.properties ?? {})) {
+    let field: z.ZodTypeAny =
+      prop.type === "number" || prop.type === "integer"
+        ? z.number()
+        : prop.type === "boolean"
+          ? z.boolean()
+          : z.string();
+    if (prop.description) field = field.describe(prop.description);
+    if (!required.has(key)) field = field.optional();
+    shape[key] = field;
+  }
+  return z.object(shape);
+}
 
-知识点速览：
-- 从同目录的 mcp.json 加载 MCP 服务配置，使用 langchain_mcp_adapters 的 MultiServerMCPClient 连接多台
-  MCP 服务器并获取工具列表，再交给 LangChain 的 createReactAgent + /* AgentExecutor -> createReactAgent graph */，形成
-  「LLM + MCP 工具」的对话 Agent。这也是第 21 章里“外部工具接入 Agent”的代表案例。
-- mcp.json 是“客户端侧的连接配置约定”，不是 MCP 协议本身。它描述的是“有哪些服务、分别怎么连”，
-  例如本仓库里既有网络方式的 weather 服务，也有 stdio 方式的 fetch 服务。
-- 流程：加载 mcp.json → 初始化 MultiServerMCPClient → 异步获取 MCP Tools → 创建 DeepSeek 模型与
-  提示模板 → 组装 Agent 与 /* AgentExecutor -> createReactAgent graph */ → 启动命令行聊天循环（输入 quit 退出）。
-- 本案例重点展示“把 MCP Tools 交给 LangChain Agent”；Resources 和 Prompts 虽然也是 MCP 能力，
-  但这里没有作为主线展开。
-- 这个文件延续了仓库里更容易教学的 classic Agent 路线；如果改走更偏 1.x 的直接路线，也常见
-  `await client.get_tools()` 之后把工具交给 `create_agent`，再配合 `ainvoke()` / `astream()` 使用。
-- 依赖：npm install langchain-mcp-adapters langchain-openai langchain-classic loguru；部分适配器要求 Python 3.12 及以下。需配置环境变量 deepseek-api（或改用其他兼容 OpenAI 的 api_key/base_url）。
- */
+function textFromMcpResult(result: {
+  content?: Array<{ type: string; text?: string }>;
+}): string {
+  if (!result.content?.length) return JSON.stringify(result);
+  return result.content
+    .map((c) => (c.type === "text" ? (c.text ?? "") : JSON.stringify(c)))
+    .join("\n");
+}
 
-import asyncio
-import json
-import os
-from pathlib import Path
+async function main() {
+  printRunHeader("14-mcp | MCP server tools -> LangChain Agent");
 
-from loguru import logger
+  const transport = new StdioClientTransport({
+    command: process.platform === "win32" ? "npx.cmd" : "npx",
+    args: ["tsx", serverPath],
+    stderr: "pipe",
+  });
 
-// 默认 mcp.json 路径（与本文件同目录）
-_MCP_JSON_PATH = Path(__file__).resolve().parent / "mcp.json"
+  const client = new Client({ name: "mcp-demo-client", version: "0.1.0" });
+  await client.connect(transport);
 
+  try {
+    const listed = await client.listTools();
+    console.log(
+      "MCP tools:",
+      listed.tools.map((t) => t.name).join(", ") || "(none)",
+    );
 
-def load_servers(file_path: string | Path | null = null) -> dict:
-    /* 
-    加载 MCP 服务器配置。
-    :param file_path: 配置文件路径，默认使用同目录下的 mcp.json
-    :return: 完整配置字典，如 {"mcpServers": {"weather": {...}, "fetch": {...}}}
+    const resources = await client.listResources();
+    console.log(
+      "MCP resources:",
+      resources.resources.map((r) => r.uri).join(", ") || "(none)",
+    );
 
-    这里读取的是“客户端如何连接服务”的约定配置，而不是协议本体。
-     */
-    path = Path(file_path) if file_path else _MCP_JSON_PATH
-    if (not path.exists()) {
-        logger.warning(`未找到 mcp 配置文件: {path}`)
-        return {"mcpServers": {}}
-    with open(path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    logger.info(
-        `已加载 mcp 配置: {path}，共 {len(config.get('mcpServers', {}))} 个服务`
-    )
-    return config
+    const lcTools = listed.tools.map((mcpTool) => {
+      const schema = jsonSchemaToZod(mcpTool.inputSchema);
+      return new DynamicStructuredTool({
+        name: mcpTool.name,
+        description: mcpTool.description || mcpTool.name,
+        schema,
+        func: async (input) => {
+          const result = await client.callTool({
+            name: mcpTool.name,
+            arguments: input as Record<string, unknown>,
+          });
+          return textFromMcpResult(
+            result as { content?: Array<{ type: string; text?: string }> },
+          );
+        },
+      });
+    });
 
+    if (!lcTools.length) {
+      throw new Error("No MCP tools available");
+    }
 
-async def run_chat_loop(config_path: string | Path | null = null) -> null:
-    /* 
-    启动并运行一个基于 MCP 工具的聊天 Agent 循环。
-    该函数会：1）加载 MCP 服务器配置；2）初始化 MCP 客户端并获取工具；
-    3）创建基于 DeepSeek 的语言模型和 Agent；4）启动命令行聊天循环；5）退出时清理资源。
-     */
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
-    except ImportError as e:
-        logger.error(
-            "请先安装 langchain-mcp-adapters: npm install langchain-mcp-adapters（部分环境需 Python 3.12 及以下）"
-        )
-        raise e
+    const agent = createReactAgent({
+      llm: createChatModel(0),
+      tools: lcTools,
+    });
 
-    import { ChatOpenAI } from "@langchain/openai"
-    from langchain_classic.agents import /* AgentExecutor -> createReactAgent graph */, createReactAgent
-    import { ChatPromptTemplate } from "@langchain/core/prompts", MessagesPlaceholder
+    const question =
+      process.argv.slice(2).join(" ") ||
+      "请计算 19+26，并查询上海天气，用中文简短总结。";
+    console.log("\n[question]", question);
 
-    config = load_servers(config_path)
-    servers = config.get("mcpServers", {})
-    if (not servers) {
-        logger.warning("mcp.json 中未配置任何服务，无法获取 MCP 工具")
-        return
+    const result = await agent.invoke({
+      messages: [new HumanMessage(question)],
+    });
 
-    // 初始化 MCP 客户端：connections 就是 mcp.json 中的 mcpServers 字典
-    // 每个条目描述一台 MCP 服务该如何连接，例如 stdio 子进程或 HTTP/SSE 地址
-    client = MultiServerMCPClient(connections=servers)
+    const last = result.messages[result.messages.length - 1];
+    console.log("\n[final]", last.content);
+  } finally {
+    await client.close();
+    await transport.close();
+  }
+}
 
-    // 按官方默认用法，MultiServerMCPClient 是无状态的；获取工具时使用异步接口即可
-    tools = await client.get_tools()
-    if (not tools) {
-        logger.warning(
-            "未从 MCP 服务获取到任何工具，请确认服务已启动且 mcp.json 配置正确"
-        )
-        return
-
-    logger.info(`已获取 {len(tools)} 个 MCP 工具: {[t.name for t in tools]}`)
-
-    // 语言模型（DeepSeek，与截图一致；可改为其他 OpenAI 兼容接口）
-    llm = new ChatOpenAI(
-        model="deepseek-v4-flash",
-        apiKey:process.env.deepseek-api,
-        configuration: { baseURL:"https://api.deepseek.com",
-    )
-
-    // 对话提示：系统提示要求使用工具完成用户请求，agent_scratchpad 供 Executor 填入中间步骤
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", "你是一个有用的助手，需要使用提供的工具来完成用户请求。"),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ]
-    )
-
-    agent = createReactAgent(llm, tools, prompt)
-    agent_executor = /* AgentExecutor -> createReactAgent graph */(
-        agent=agent,
-        tools=tools,
-        verbose=true,
-        handle_parsing_errors="解析用户请求失败，请重新输入清晰的指令",
-    )
-
-    logger.info("\n MCP Agent 已启动，请先输入一个提问给(LLM+MCP)，输入 'quit' 退出")
-
-    while true:
-        try:
-            user_input = input("\n您: ").strip()
-            if (not user_input) {
-                continue
-            if (user_input.lower() == "quit") {
-                logger.info("已退出")
-                break
-            result = agent_executor.invoke({"input": user_input})
-            output = result.get("output", result)
-            console.log(`\nAgent: {output}`)
-        except KeyboardInterrupt:
-            logger.info("已退出")
-            break
-
-
-def main() -> null:
-    await (run_chat_loop())
-
-
-if (__name__ == "__main__") {
-    main()
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

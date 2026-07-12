@@ -16,3 +16,17 @@
 
 先读 `book/README.md` 与 `book/教程目录大纲.md`，再按 `_sidebar.md` 目录学。
 代码以 `examples/01..14` 与 `apps/shop-query-agent` 为准做练习。
+
+## 精校进度
+
+详见 [POLISHED-CASES.md](POLISHED-CASES.md)。
+
+已精校的核心案例可通过：
+
+```bash
+npm run case:hello
+npm run case:tools
+npm run case:agent
+npm run case:graph
+npm run case:supervisor
+```

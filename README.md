@@ -46,6 +46,11 @@ cp .env.example .env
 npm run ex:01
 npm run ex:09
 npm run ex:14
+
+# 精校后的 book 案例
+npm run case:hello
+npm run case:agent
+npm run case:supervisor
 ```
 
 ### 3) 跑电商问数 Demo

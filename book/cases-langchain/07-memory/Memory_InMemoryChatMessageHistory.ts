@@ -1,67 +1,56 @@
 /**
- * Auto-ported from Python case for TypeScript track.
- * Source: cases-langchain/07-memory/Memory_InMemoryChatMessageHistory.py
- * Prefer the curated runnable examples under /examples when APIs differ.
+ * 【精校可运行】内存多轮历史（第 16 章）
+ * 原 Python: Memory_InMemoryChatMessageHistory.py 教学意图
+ *
+ *   npx tsx book/cases-langchain/07-memory/Memory_InMemoryChatMessageHistory.ts
  */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { createChatModel } from "../../../src/shared/llm.js";
 
-// [TS-PORT] 由原 Python 示例自动迁移，建议对照 examples/ 目录可运行版本精读
-/* 
-【案例】直接使用 InMemoryChatMessageHistory 的 API：add_message、messages，手动拼历史后调用模型
+class InMemoryChatHistory {
+  private store = new Map<string, BaseMessage[]>();
+  get(sessionId: string) {
+    return this.store.get(sessionId) ?? [];
+  }
+  append(sessionId: string, messages: BaseMessage[]) {
+    this.store.set(sessionId, [...this.get(sessionId), ...messages]);
+  }
+}
 
-对应教程章节：第 16 章 - 记忆与对话历史 → 5、实现类介绍（BaseChatMessageHistory 与常用实现）/ 6.1 内存版
+async function chat(
+  history: InMemoryChatHistory,
+  sessionId: string,
+  text: string,
+) {
+  const model = createChatModel(0.2);
+  const messages: BaseMessage[] = [
+    new SystemMessage("你是有记忆的助教，请结合历史对话回答。"),
+    ...history.get(sessionId),
+    new HumanMessage(text),
+  ];
+  const ai = await model.invoke(messages);
+  history.append(sessionId, [
+    new HumanMessage(text),
+    new AIMessage(String(ai.content)),
+  ]);
+  return String(ai.content);
+}
 
-知识点速览：
-- BaseChatMessageHistory 的实现类提供 add_message(msg)、add_user_message(text)、messages（只读列表）等；本案例演示不通过 /* message history wrapper */，而是手动维护 history 并每次把 history.messages 传给 llm.invoke。
-- 手动维护 history 时，要自己决定“什么时候把用户消息写进去、什么时候把 AI 回复写回去”；如果漏掉 add_message(ai_message)，下一轮模型就看不到自己的上一轮回答。
-- 适用场景：需要细粒度控制「何时写入历史、何时读取」时，可直接操作 history；多数场景更推荐用 /* message history wrapper */ 自动完成「读→拼入→执行→写回」。
-- 内存版：数据仅在进程内，重启即丢失；持久化见 6.2 RedisChatMessageHistory。
- */
+async function main() {
+  const history = new InMemoryChatHistory();
+  const sid = "user-001";
+  console.log(await chat(history, sid, "我叫小林，我在学 TypeScript Agent。"));
+  console.log("---");
+  console.log(await chat(history, sid, "还记得我的名字和在学什么吗？"));
+  console.log("history size =", history.get(sid).length);
+}
 
-import "dotenv/config"
-
-// dotenv/config loaded
-
-import { ChatOpenAI } from "@langchain/openai"
-from langchain_core.chat_history import InMemoryChatMessageHistory
-from loguru import logger
-import os
-
-llm = new new ChatOpenAI(
-    model="qwen-plus",
-    
-    apiKey:process.env.aliQwen-api,
-    configuration: { baseURL:"https://dashscope.aliyuncs.com/compatible-mode/v1",
-)
-
-// 创建内存版历史实例（BaseChatMessageHistory 的实现）
-history = InMemoryChatMessageHistory()
-
-// 手动添加用户消息并调用模型；模型输入为当前全部 messages
-history.add_user_message("我叫张三，我的爱好是学习")
-ai_message = llm.invoke(history.messages)
-logger.info(`第一次回答\n{ai_message.content}`)
-// 手动把 AI 回复写回 history；否则下一轮只会看到用户消息，达不到“多轮记忆”的效果
-history.add_message(ai_message)
-
-// 再追加一轮：用户问「我叫什么？我的爱好是什么？」；此时 history.messages 已含上一轮
-history.add_user_message("我叫什么？我的爱好是什么？")
-ai_message2 = llm.invoke(history.messages)
-logger.info(`第二次回答\n{ai_message2.content}`)
-// 这一轮的 AI 回复也同样需要手动写回
-history.add_message(ai_message2)
-
-// 遍历当前会话全部消息；可以直观看到 history.messages 本质上就是一组 BaseMessage
-for (const index, message of enumerate(history.messages, start=1)) {
-    logger.info(`第{index}条[{message.type}] {message.content}`)
-
-/* 
-【输出示例】
-2026-03-09 15:17:53.046 | INFO     | __main__:<module>:35 - 第一次回答
-你好，张三！很高兴认识你……
-2026-03-09 15:17:55.429 | INFO     | __main__:<module>:41 - 第二次回答
-你叫张三，你的爱好是学习……
-2026-03-09 15:17:55.429 | INFO     | __main__:<module>:46 - 第1条[human] 我叫张三，我的爱好是学习
-2026-03-09 15:17:55.429 | INFO     | __main__:<module>:46 - 第2条[ai] 你好，张三！很高兴认识你……
-2026-03-09 15:17:55.429 | INFO     | __main__:<module>:46 - 第3条[human] 我叫什么？我的爱好是什么？
-2026-03-09 15:17:55.429 | INFO     | __main__:<module>:46 - 第4条[ai] 你叫张三，你的爱好是学习……
- */
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

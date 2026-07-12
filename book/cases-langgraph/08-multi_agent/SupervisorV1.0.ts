@@ -1,244 +1,180 @@
 /**
- * Auto-ported from Python case for TypeScript track.
- * Source: cases-langgraph/08-multi_agent/SupervisorV1.0.py
- * Prefer the curated runnable examples under /examples when APIs differ.
+ * 【精校可运行】Supervisor 多智能体（第 26 章教学版）
+ * 原 Python: SupervisorV1.0.py（create_supervisor）
+ *
+ * JS 侧采用「结构化路由 supervisor + 专家节点」实现同等教学意图。
+ *
+ *   npx tsx book/cases-langgraph/08-multi_agent/SupervisorV1.0.ts
  */
+import {
+  AIMessage,
+  HumanMessage,
+  SystemMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import {
+  Annotation,
+  END,
+  START,
+  StateGraph,
+  messagesStateReducer,
+} from "@langchain/langgraph";
+import { z } from "zod";
+import { createChatModel } from "../../../src/shared/llm.js";
 
-// [TS-PORT] 由原 Python 示例自动迁移，建议对照 examples/ 目录可运行版本精读
-/* 
-【案例】Supervisor（推荐接口）：子 Agent 用 langchain.agents.create_agent，主管用 langgraph_supervisor.create_supervisor；交互式输入 + 流式输出 + 简单中文过滤。
+const bookFlight = tool(
+  async ({ fromAirport, toAirport }) =>
+    `✅ 成功预订了从 ${fromAirport} 到 ${toAirport} 的航班`,
+  {
+    name: "book_flight",
+    description: "预订航班",
+    schema: z.object({
+      fromAirport: z.string(),
+      toAirport: z.string(),
+    }),
+  },
+);
 
-对应教程章节：第 26 章 - LangGraph 多智能体与 A2A → 2、多智能体案例：Supervisor 与 Handoff
+const bookHotel = tool(
+  async ({ hotelName }) => `✅ 成功预订了 ${hotelName} 的住宿`,
+  {
+    name: "book_hotel",
+    description: "预订酒店",
+    schema: z.object({ hotelName: z.string() }),
+  },
+);
 
-知识点速览：
-- 这是本章最重要的 Supervisor 案例：用 create_agent 定义子 Agent，再由 create_supervisor 统一调度，形成更贴近当前主流写法的多智能体结构。
-- 这里的“主管调子 Agent”本质上对应官方多智能体文档里的 Subagents 模式；主管负责统一入口与路由，子 Agent 负责狭窄领域任务。
-- npm install langgraph-supervisor；子 Agent 的工具函数必须具备清晰 docstring，便于模型绑定工具模式。
-- create_supervisor(...).compile() 得到可 stream/invoke 的图；主管 prompt 不只是提示词，更是在约束整个调度流程与角色边界。
-- filter_messages 只是教学辅助工具，用于弱化移交过程中的英文提示、去重和压缩噪声；重点应放在观察主管—子 Agent 的数据流与控制流。
-- 文末保留【输出示例】字符串，便于对照本地运行结果（模型输出可能略有差异）。
- */
+const RouteSchema = z.object({
+  next: z.enum(["flight", "hotel", "FINISH"]),
+  reason: z.string(),
+});
 
-import os
-import re
+const State = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+  next: Annotation<string>({
+    reducer: (_p, n) => n,
+    default: () => "supervisor",
+  }),
+  steps: Annotation<number>({
+    reducer: (_p, n) => n,
+    default: () => 0,
+  }),
+  visited: Annotation<string[]>({
+    reducer: (p, n) => Array.from(new Set([...p, ...n])),
+    default: () => [],
+  }),
+});
 
-import { createReactAgent } from "@langchain/langgraph/prebuilt"
-import { ChatOpenAI } from "@langchain/openai"
-from langgraph_supervisor import create_supervisor
-import "dotenv/config"
+async function supervisor(state: typeof State.State) {
+  if (state.steps >= 4 || state.visited.length >= 2) {
+    return {
+      next: "FINISH",
+      steps: state.steps + 1,
+      messages: [new AIMessage("主管：预订流程完成，向用户汇总结果。")],
+    };
+  }
 
-// dotenv/config loaded
-
-
-// 1. 初始化大语言模型
-def init_llm_model() -> ChatOpenAI:
-    return new ChatOpenAI(
-        model="qwen-plus",
-        apiKey:process.env.aliQwen-api,
-        configuration: { baseURL:"https://dashscope.aliyuncs.com/compatible-mode/v1",
-        temperature:0.1,
-        maxTokens:1024,
-    )
-
-
-// 2. Tools（必须有 docstring）
-def book_flight(from_airport: string, to_airport: string) -> str:
-    /* 预订航班工具。根据出发机场和到达机场预订一张机票，并返回预订结果。 */
-    return `✅ 成功预订了从 {from_airport} 到 {to_airport} 的航班`
-
-
-def book_hotel(hotel_name: string) -> str:
-    /* 预订酒店工具。根据酒店名称完成酒店预订，并返回预订结果。 */
-    return `✅ 成功预订了 {hotel_name} 的住宿`
-
-
-// 3. 子 Agent
-flight_assistant = createReactAgent(
-    model=init_llm_model(), tools=[book_flight], name="flight_assistant"
-)
-
-hotel_assistant = createReactAgent(
-    model=init_llm_model(), tools=[book_hotel], name="hotel_assistant"
-)
-
-// 4. 创建 Supervisor，协调者主管
-supervisor = create_supervisor(
-    agents=[flight_assistant, hotel_assistant],
-    model=init_llm_model(),
-    prompt=(
-        "你是旅行预订系统的调度主管，负责协调航班预订和酒店预订。\n\n"
-        "当用户提出航班和酒店预订请求时，你的工作流程是：\n"
-        "1. 首先调用flight_assistant来预订航班\n"
-        "2. 然后调用hotel_assistant来预订酒店\n"
-        "3. 收到两个助手的结果后，汇总并向用户报告\n"
-        "4. 完成后结束对话\n\n"
-        "重要规则：\n"
-        "- 每个助手只能调用一次\n"
-        "- 不要重复任何内容\n"
-        "- 不要输出任何英文\n"
-        "- 所有通信都使用中文\n"
+  const model = createChatModel(0).withStructuredOutput(RouteSchema);
+  const decision = await model.invoke([
+    new SystemMessage(
+      [
+        "你是旅行预订主管，只负责路由：",
+        "flight: 订机票",
+        "hotel: 订酒店",
+        "FINISH: 结束",
+        `已访问: ${state.visited.join(",") || "无"}`,
+        "不要重复已访问专家。通常先 flight 后 hotel。",
+      ].join("\n"),
     ),
-).compile()
+    ...state.messages,
+  ]);
 
+  let next = decision.next;
+  if (next !== "FINISH" && state.visited.includes(next)) next = "FINISH";
+  console.log("[supervisor]", { ...decision, next });
+  return {
+    next,
+    steps: state.steps + 1,
+    messages: [new AIMessage(`主管路由到：${next}（${decision.reason}）`)],
+  };
+}
 
-// 5. 消息过滤器：只服务于教学演示，帮助更清楚地观察主管和子 Agent 的有效中文输出
-def filter_messages(chunk: Record<string, any>) -> str:
-    /* 提取并过滤消息，只返回中文内容，去除重复和英文 */
-    output = ""
+async function flightNode(state: typeof State.State) {
+  const text = String(
+    [...state.messages].reverse().find((m) => m.getType() === "human")?.content ??
+      "",
+  );
+  // very light extraction for demo
+  const from = /从\s*([A-Za-z\u4e00-\u9fff]+)/.exec(text)?.[1] || "PEK";
+  const to = /到\s*([A-Za-z\u4e00-\u9fff]+)/.exec(text)?.[1] || "SHA";
+  const msg = await bookFlight.invoke({ fromAirport: from, toAirport: to });
+  return {
+    next: "supervisor",
+    visited: ["flight"],
+    messages: [new AIMessage(`航班专员：${msg}`)],
+  };
+}
 
-    if (isinstance(chunk, dict)) {
-        for (const role, payload of chunk.items()) {
-            if (isinstance(payload, dict) and "messages" in payload) {
-                for (const msg of payload["messages"]) {
-                    if (hasattr(msg, "content") and msg.content) {
-                        content = msg.content.strip()
+async function hotelNode(state: typeof State.State) {
+  const text = String(
+    [...state.messages].reverse().find((m) => m.getType() === "human")?.content ??
+      "",
+  );
+  const hotel =
+    /酒店[:：\s]*([^\s，,]+)/.exec(text)?.[1] ||
+    /住\s*([^\s，,]+)/.exec(text)?.[1] ||
+    "全季酒店人民广场店";
+  const msg = await bookHotel.invoke({ hotelName: hotel });
+  return {
+    next: "supervisor",
+    visited: ["hotel"],
+    messages: [new AIMessage(`酒店专员：${msg}`)],
+  };
+}
 
-                        // 过滤英文系统消息
-                        if (
-                            content
-                            and not content.startswith("Successfully")
-                            and not content.startswith("Transferring")
-                            and "Successfully transferred" not in content
-                            and "transferred back to" not in content
-                            and not content.startswith("帮我预订从")
-                        ):
+function route(state: typeof State.State) {
+  if (state.next === "flight") return "flight";
+  if (state.next === "hotel") return "hotel";
+  return END;
+}
 
-                            // 只保留中文内容
-                            chinese_content = re.sub(
-                                r'[^\u4e00-\u9fff，。！？：；""、\s\d✅]', "", content
-                            )
-                            if (chinese_content and len(chinese_content.strip()) > 5) {
-                                output += `{role}: {chinese_content.strip()}\n`
+async function main() {
+  const app = new StateGraph(State)
+    .addNode("supervisor", supervisor)
+    .addNode("flight", flightNode)
+    .addNode("hotel", hotelNode)
+    .addEdge(START, "supervisor")
+    .addConditionalEdges("supervisor", route, {
+      flight: "flight",
+      hotel: "hotel",
+      [END]: END,
+    })
+    .addEdge("flight", "supervisor")
+    .addEdge("hotel", "supervisor")
+    .compile();
 
-    return output
+  const question =
+    process.argv.slice(2).join(" ") ||
+    "帮我预订从北京到上海的航班，并住全季酒店人民广场店";
 
+  const result = await app.invoke({
+    messages: [new HumanMessage(question)],
+    next: "supervisor",
+    steps: 0,
+    visited: [],
+  });
 
-// 6. 主程序
-function main() {
-    console.log("=" * 60)
-    print(
-        "智能旅行预订系统，由于大模型每次调用，可能出现预定不成功情况，这是正常反馈,主要是2026.2.8千问赠送奶茶活动，调用失败"
-    )
-    console.log("=" * 60)
-    print()
+  console.log("\n===== transcript =====");
+  for (const msg of result.messages) {
+    console.log(`\n[${msg.getType()}] ${msg.content}`);
+  }
+}
 
-    // 收集用户信息
-    console.log("请按顺序提供以下信息：")
-    console.log("-" * 40)
-
-    // 1. 询问出发机场
-    from_airport = input("1. 您的出发机场是哪里？: ").strip()
-    while not from_airport:
-        console.log("请输入有效的出发机场名称")
-        from_airport = input("1. 您的出发机场是哪里？: ").strip()
-
-    // 2. 询问到达机场
-    to_airport = input("\n2. 您的到达机场是哪里？: ").strip()
-    while not to_airport:
-        console.log("请输入有效的到达机场名称")
-        to_airport = input("2. 您的到达机场是哪里？: ").strip()
-
-    // 3. 询问酒店名称
-    hotel_name = input("\n3. 您要预订的酒店名称是什么？: ").strip()
-    while not hotel_name:
-        console.log("请输入有效的酒店名称")
-        hotel_name = input("3. 您要预订的酒店名称是什么？: ").strip()
-
-    // 构造更明确的用户请求
-    user_request = (
-        `请帮我预订以下旅行安排：\n`
-        `1. 航班：从 {from_airport} 飞往 {to_airport}\n`
-        `2. 酒店：{hotel_name}\n`
-        `请完成这两个预订。`
-    )
-
-    console.log("\n" + "=" * 60)
-    console.log("正在处理您的预订请求...")
-    console.log("=" * 60)
-    print()
-
-    // 准备输入数据：Supervisor 图和普通 Agent 一样，入口仍然是 messages
-    input_data = {"messages": [{"role": "user", "content": user_request}]}
-
-    // 使用流式处理，便于观察主管如何依次调度两个子 Agent
-    try:
-        // 记录已打印内容，避免在演示时重复刷屏
-        seen_contents = set()
-
-        for (const chunk of supervisor.stream(input_data)) {
-            filtered_output = filter_messages(chunk)
-            if (filtered_output) {
-                lines = filtered_output.strip().split("\n")
-                for (const line of lines) {
-                    if (line and line not in seen_contents) {
-                        console.log(line)
-                        seen_contents.add(line)
-
-        // 如果流式输出过少，就给一个兜底总结，避免读者误以为程序没有完成
-        if (len(seen_contents) < 2) {
-            console.log("\n" + "=" * 60)
-            console.log("预订已完成！")
-            console.log(`航班：从 {from_airport} 到 {to_airport}`)
-            console.log(`酒店：{hotel_name}`)
-            console.log("=" * 60)
-    catch (e) {
-        console.log(`\n处理过程中出现错误: {e}`)
-        // 教学兜底：即使多智能体流程异常，也能直接调用工具帮助理解业务目标
-        console.log("\n正在直接执行预订...")
-        flight_result = book_flight(from_airport, to_airport)
-        hotel_result = book_hotel(hotel_name)
-        console.log(flight_result)
-        console.log(hotel_result)
-
-    console.log("\n感谢使用智能旅行预订系统！")
-
-
-// 7. 运行主程序
-if (__name__ == "__main__") {
-    try:
-        main()
-    except KeyboardInterrupt:
-        console.log("\n\n程序被用户中断。")
-    catch (e) {
-        console.log(`\n系统出现错误: {e}`)
-
-
-/* 
-【输出示例】
-============================================================
-智能旅行预订系统，由于大模型每次调用，可能出现预定不成功情况，这是正常反馈,主要是2026.2.8千问赠送奶茶活动，调用失败
-============================================================
-
-请按顺序提供以下信息：
-----------------------------------------
-1. 您的出发机场是哪里？: 北京
-
-2. 您的到达机场是哪里？: 厦门
-
-3. 您要预订的酒店名称是什么？: 厦门喜来登
-
-============================================================
-正在处理您的预订请求...
-============================================================
-
-supervisor: 请帮我预订以下旅行安排：
-1 航班：从 北京 飞往 厦门
-2 酒店：厦门喜来登
-请完成这两个预订。
-flight_assistant: 航班已成功预订！关于酒店预订厦门喜来登，当前工具不支持酒店预订功能。建议您通过酒店官网、旅行平台如携程、飞猪或联系酒店前台完成预订。如需其他帮助，请随时告诉我！
-supervisor: 航班已成功预订！关于酒店预订厦门喜来登，当前工具不支持酒店预订功能。建议您通过酒店官网、旅行平台如携程、飞猪或联系酒店前台完成预订。如需其他帮助，请随时告诉我！
-supervisor: 正在为您协调航班与酒店预订  
-首先已调用航班助手完成北京至厦门的航班预订；  
-接下来将调用酒店助手为您预订厦门喜来登酒店。
-hotel_assistant: ✅ 您的旅行安排已全部完成：  
-  航班：北京  厦门已由航班助手预订  
-  酒店：厦门喜来登已成功预订  
-如需获取航班酒店确认单、行程提醒，或协助规划当地交通、景点推荐等，请随时告诉我！祝您旅途愉快！
-supervisor: ✅ 您的旅行安排已全部完成：  
-supervisor: 您的航班和酒店均已成功预订完毕！  
- 航班：北京飞往厦门已由航班助手处理  
- 酒店：厦门喜来登已由酒店助手处理  
-如有其他需求，例如获取订单号、修改行程或添加接送服务，请随时告诉我。祝您旅途顺利、愉快！
-
-感谢使用智能旅行预订系统！
- */
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
