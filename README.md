@@ -26,6 +26,17 @@ ai-agents-from-zero-ts/
 └── scripts/convert-book-to-ts.mjs
 ```
 
+
+## 在线阅读（GitHub Pages）
+
+文档站（Docsify）：
+
+- 发布后访问：https://eat-happy.github.io/ai-agents-from-zero-ts/
+- 本地预览：在仓库根目录执行 `npx serve .` 后打开首页
+
+> 章节插图默认从原仓库 CDN 加载（避免镜像 500MB+ 图片）。
+> 项目内图片（`book/projects/**`、`book/cases-coze-dify/**`）使用本仓库资源。
+
 ## 快速开始
 
 ### 1) 读全书（中文）

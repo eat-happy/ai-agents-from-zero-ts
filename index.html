@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AI 智能体实战速成指南 TypeScript 完整译本：中文教程 + LangChain.js / LangGraph.js / MCP / Next.js 可运行案例"
+    />
+    <title>AI 智能体实战速成指南 · TypeScript 译本 | ai-agents-from-zero-ts</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/PrismJS/prism-themes@master/themes/prism-ghcolors.css"
+    />
+    <style>
+      :root {
+        --theme-color: #0f766e;
+        --accent: #0f766e;
+      }
+      .app-name-link {
+        font-weight: 700;
+      }
+      .markdown-section {
+        max-width: 920px;
+      }
+      .markdown-section pre {
+        border-radius: 8px;
+      }
+      .ts-badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #ccfbf1;
+        color: #115e59;
+        font-size: 12px;
+        vertical-align: middle;
+      }
+      .sidebar-nav li.active > a {
+        color: var(--accent) !important;
+        font-weight: 700;
+      }
+      .cover-main {
+        color: #1c2430;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">加载文档中...</div>
+    <script>
+      const UPSTREAM_IMAGES =
+        "https://cdn.jsdelivr.net/gh/didilili/ai-agents-from-zero@main/images/";
+
+      window.$docsify = {
+        name: "ai-agents-from-zero-ts",
+        nameLink: "#/",
+        repo: "https://github.com/eat-happy/ai-agents-from-zero-ts",
+        homepage: "README.md",
+        basePath: "book/",
+        loadSidebar: true,
+        subMaxLevel: 3,
+        auto2top: true,
+        relativePath: true,
+        search: {
+          paths: "auto",
+          placeholder: "搜索章节...",
+          noData: "未找到结果",
+          depth: 3,
+        },
+        copyCode: {
+          buttonText: "复制",
+          errorText: "失败",
+          successText: "已复制",
+        },
+        pagination: {
+          previousText: "上一章",
+          nextText: "下一章",
+          crossChapter: true,
+          crossChapterText: true,
+        },
+        plugins: [
+          function (hook, vm) {
+            hook.beforeEach(function (content) {
+              // 章节插图走原仓库 CDN，避免本仓库塞入 500MB+ 图片
+              content = content.replace(
+                /\]\((?:\.\.\/)*images\//g,
+                "](" + UPSTREAM_IMAGES,
+              );
+              // 去掉 GitHub 渲染专用的相对锚点噪声
+              return content;
+            });
+            hook.doneEach(function () {
+              // 给标题补 TS 标识
+              const h1 = document.querySelector(".markdown-section h1");
+              if (h1 && !h1.querySelector(".ts-badge")) {
+                const badge = document.createElement("span");
+                badge.className = "ts-badge";
+                badge.textContent = "TypeScript 轨道";
+                h1.appendChild(badge);
+              }
+            });
+            hook.afterEach(function (html) {
+              const path = vm.route.file || "";
+              const editBase =
+                "https://github.com/eat-happy/ai-agents-from-zero-ts/blob/main/book/";
+              return (
+                html +
+                '<hr/><p style="color:#64748b;font-size:13px;">' +
+                '文档源：<a href="' +
+                editBase +
+                path +
+                '" target="_blank" rel="noopener">book/' +
+                path +
+                "</a> · " +
+                '可运行案例见仓库 <code>examples/</code> 与 <a href="#/POLISHED-CASES">POLISHED-CASES</a>' +
+                "</p>"
+              );
+            });
+          },
+        ],
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  </body>
+</html>
