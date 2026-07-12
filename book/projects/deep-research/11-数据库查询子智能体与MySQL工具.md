@@ -1,6 +1,8 @@
 # 11 - 深度研搜：数据库查询子智能体与 MySQL 工具
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -405,7 +407,7 @@ MYSQL_SQL_MODE=TRADITIONAL
 
 这里的账号、密码和库名可以根据你自己的本地环境调整。教程里写的是课程演示值，真实项目不要把生产数据库密码写进文档或仓库。
 
-这里端口写 `3307`，是因为课程项目用 Docker 启动 MySQL 时，会把容器里的 `3306` 映射到宿主机的 `3307`，避免和你电脑上已有的 MySQL `3306` 冲突。后面的 Python 工具连接的是宿主机地址，所以 `MYSQL_HOST=localhost`、`MYSQL_PORT=3307`。
+这里端口写 `3307`，是因为课程项目用 Docker 启动 MySQL 时，会把容器里的 `3306` 映射到宿主机的 `3307`，避免和你电脑上已有的 MySQL `3306` 冲突。后面的 TypeScript 工具连接的是宿主机地址，所以 `MYSQL_HOST=localhost`、`MYSQL_PORT=3307`。
 
 ### 4.3 使用 Docker 启动 MySQL
 
@@ -473,7 +475,7 @@ docker compose --env-file .env -f docs/docker-compose.yaml up -d
 | 创建 `deepsearch-mysql` 容器 | 后续可以通过容器名查看日志或进入容器           |
 | 创建 `deepsearch_db`         | 由 `MYSQL_DATABASE` 控制                       |
 | 导入 `mysql.sql`             | 只在数据卷第一次创建、数据库目录为空时自动执行 |
-| 暴露本机端口 `3307`          | Python 代码通过 `localhost:3307` 连接 MySQL    |
+| 暴露本机端口 `3307`          | TypeScript 代码通过 `localhost:3307` 连接 MySQL    |
 
 检查容器状态：
 
@@ -500,7 +502,7 @@ docker compose --env-file .env -f docs/docker-compose.yaml up -d
 
 ## 5、实现数据库工具
 
-项目对应文件路径：`deepsearch-agents/app/tools/db_tools.py`
+项目对应文件路径：`deepsearch-agents/app/tools/db_tools.ts`
 
 这一节集中完成 4 件事：
 
@@ -1605,7 +1607,7 @@ main().catch((err) => {
 
 ### 5.7 本地调试入口
 
-在项目根目录运行：`uv run npx tsx app.tools.db_tools`
+在项目根目录运行：`npx tsx npx tsx app.tools.db_tools`
 
 一次真实输出会先看到工具监控事件：
 
@@ -1641,13 +1643,13 @@ drug_id,generic_name,brand_name,approval_number,specifications,dosage_form,manuf
 
 ---
 
-## 6、为什么这里没有使用 SQLAlchemy
+## 6、为什么这里没有使用 Prisma / Drizzle / TypeORM
 
-这章使用的是 `mysql.connector`，不是 SQLAlchemy。这里单独说明一下，避免把「深度研搜」和「电商问数」两套项目混在一起。
+这章使用的是 `mysql.connector`，不是 Prisma / Drizzle / TypeORM。这里单独说明一下，避免把「深度研搜」和「电商问数」两套项目混在一起。
 
 ### 6.1 ORM 映射是什么
 
-ORM，全称是 Object Relational Mapping，可以理解成“把数据库表映射成程序里的对象”。如果用 SQLAlchemy ORM，通常会先写一批 Python 类：
+ORM，全称是 Object Relational Mapping，可以理解成“把数据库表映射成程序里的对象”。如果用 Prisma / Drizzle / TypeORM ORM，通常会先写一批 TypeScript 类：
 
 ```typescript
 // Real TypeScript from repo: examples/14-mcp/client-agent.ts
@@ -1780,9 +1782,9 @@ main().catch((err) => {
 });
 ```
 
-这样 `drugs` 表就对应 Python 里的 `Drug` 类，`generic_name`、`brand_name` 这些字段也变成了类属性。后续查询时，可以通过 `Session` 操作对象或构造 ORM 查询，而不是每次都手写底层连接代码。
+这样 `drugs` 表就对应 TypeScript 里的 `Drug` 类，`generic_name`、`brand_name` 这些字段也变成了类属性。后续查询时，可以通过 `Session` 操作对象或构造 ORM 查询，而不是每次都手写底层连接代码。
 
-在「电商问数」项目里，我们用了 SQLAlchemy。那个项目更像完整后端系统：有元数据库、数据仓库、Repository、Service、FastAPI 依赖注入和请求级 Session，所以需要 SQLAlchemy 管理连接、事务、Session 工厂和一部分 ORM 模型映射。
+在「电商问数」项目里，我们用了 Prisma / Drizzle / TypeORM。那个项目更像完整后端系统：有元数据库、数据仓库、Repository、Service、Next.js / Hono / Fastify 依赖注入和请求级 Session，所以需要 Prisma / Drizzle / TypeORM 管理连接、事务、Session 工厂和一部分 ORM 模型映射。
 
 ### 6.2 当前项目为什么只用小工具
 
@@ -1805,14 +1807,14 @@ execute_sql_query
 
 | 项目     | 数据库访问方式                                       | 适合场景                                                    |
 | -------- | ---------------------------------------------------- | ----------------------------------------------------------- |
-| 电商问数 | SQLAlchemy + asyncmy + Session + ORM / 原生 SQL 混合 | 完整后端工程、元数据管理、Repository 分层、请求级数据库会话 |
+| 电商问数 | Prisma / Drizzle / TypeORM + asyncmy + Session + ORM / 原生 SQL 混合 | 完整后端工程、元数据管理、Repository 分层、请求级数据库会话 |
 | 深度研搜 | `mysql.connector` + 3 个 LangChain 小工具            | 子智能体直接查三张教学表，重点是工具调用链路                |
 
-不是 SQLAlchemy 不好，而是这一章暂时不需要这么重的访问层。等项目需要维护大量表、复杂事务、统一 Repository 或请求级 Session 时，再引入 SQLAlchemy 会更合适。
+不是 Prisma / Drizzle / TypeORM 不好，而是这一章暂时不需要这么重的访问层。等项目需要维护大量表、复杂事务、统一 Repository 或请求级 Session 时，再引入 Prisma / Drizzle / TypeORM 会更合适。
 
 ### 6.3 和电商问数的定位区别
 
-这里容易产生一个疑问：既然两个项目都涉及“自然语言提问 -> 生成 SQL -> 查询数据库”，为什么「电商问数」要做元数据知识库、数仓建模、Qdrant、Elasticsearch、SQLAlchemy、Repository、LangGraph 流程编排，而这里三个小工具就能跑起来？
+这里容易产生一个疑问：既然两个项目都涉及“自然语言提问 -> 生成 SQL -> 查询数据库”，为什么「电商问数」要做元数据知识库、数仓建模、Qdrant、Elasticsearch、Prisma / Drizzle / TypeORM、Repository、LangGraph 流程编排，而这里三个小工具就能跑起来？
 
 关键不在于“能不能生成 SQL”，而在于两个项目要解决的问题层级不同。
 
@@ -1841,18 +1843,18 @@ execute_sql_query
 | 上下文获取 | 运行时直接看表名和样例数据               | 先构建元数据知识库，再按问题召回相关上下文                               |
 | 检索能力   | 主要依赖 MySQL 工具返回的表结构和样例    | Qdrant 召回字段/指标，Elasticsearch 检索字段取值                         |
 | 流程编排   | DeepAgents 子智能体自行决定工具调用      | LangGraph 拆成关键词抽取、召回、过滤、补全、生成、校验、纠错、执行等节点 |
-| 数据访问层 | `mysql.connector` 直接连接查询           | SQLAlchemy + asyncmy + Session + Repository 分层                         |
+| 数据访问层 | `mysql.connector` 直接连接查询           | Prisma / Drizzle / TypeORM + asyncmy + Session + Repository 分层                         |
 | 适合场景   | 小型数据库查询、教学演示、Agent 工具接入 | 可扩展的企业问数、复杂指标和数仓语义理解                                 |
 
 如果前面学过「电商问数」，这里可以这样理解：**只查三张固定表时，电商问数那套工程会显得偏重；但要做完整问数系统时，深度研搜这里的小工具方案又会显得太轻。**
 
-这一章选择轻量实现，不是否定 SQLAlchemy、元数据知识库或 LangGraph 问数流程，而是把注意力收束到“数据库查询子智能体”这个局部能力上。
+这一章选择轻量实现，不是否定 Prisma / Drizzle / TypeORM、元数据知识库或 LangGraph 问数流程，而是把注意力收束到“数据库查询子智能体”这个局部能力上。
 
 ---
 
 ## 7、组装 database_query_agent
 
-项目对应文件路径：`deepsearch-agents/app/agent/subagents/database_query_agent.py`
+项目对应文件路径：`deepsearch-agents/app/agent/subagents/database_query_agent.ts`
 
 代码如下：
 

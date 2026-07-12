@@ -1,6 +1,8 @@
 # 12 - 深度研搜：RAGFlow 子智能体与知识库准备
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -328,7 +330,7 @@ flowchart TD
 
 ### 3.1 机器配置建议
 
-RAGFlow 服务比较重，建议使用云服务器部署。它不是一个只启动 Python 进程的小工具，底层还会拉起 Elasticsearch、MinIO、MySQL、Valkey 等组件。
+RAGFlow 服务比较重，建议使用云服务器部署。它不是一个只启动 TypeScript 进程的小工具，底层还会拉起 Elasticsearch、MinIO、MySQL、Valkey 等组件。
 
 课程环境建议：
 
@@ -1108,7 +1110,7 @@ main().catch((err) => {
 
 ### 7.1 读取 RAGFlow 环境变量
 
-项目对应文件路径：`deepsearch-agents/app/ragflow/rag_config.py`。
+项目对应文件路径：`deepsearch-agents/app/ragflow/rag_config.ts`。
 
 ```typescript
 // Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
@@ -1237,7 +1239,7 @@ main().catch((err) => {
 
 ### 7.2 可选扩展：用代码创建知识库
 
-项目对应文件路径：`deepsearch-agents/app/ragflow/knowledge_demo.py`
+项目对应文件路径：`deepsearch-agents/app/ragflow/knowledge_demo.ts`
 
 前面主要通过 RAGFlow 页面创建知识库，这是学习阶段最直观的方式。但 RAGFlow SDK 也支持通过代码创建知识库。
 
@@ -1511,7 +1513,7 @@ main().catch((err) => {
 
 ## 8、工具一：get_assistant_list
 
-项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.py`
+项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.ts`
 
 ### 8.1 工具作用
 
@@ -1723,7 +1725,7 @@ main().catch((err) => {
 
 ## 9、工具二：create_ask_delete
 
-项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.py`
+项目对应文件路径：`deepsearch-agents/app/tools/ragflow_tools.ts`
 
 ### 9.1 工具作用
 
@@ -2115,7 +2117,7 @@ RAGFlow 子智能体查到的是内部资料。它应该按提问轮次保留原
 
 ## 11、组装 knowledge_base_agent
 
-项目对应文件路径：`deepsearch-agents/app/agent/subagents/knowledge_base_agent.py`
+项目对应文件路径：`deepsearch-agents/app/agent/subagents/knowledge_base_agent.ts`
 
 代码如下：
 
@@ -2285,7 +2287,7 @@ app/agent/subagents/knowledge_base_agent.py
   -> tools=[get_assistant_list, create_ask_delete]
 ```
 
-`prompts.yml` 管提示词和描述，`rag_config.py` 管连接配置，`knowledge_demo.py` 演示知识库和文件操作，`ragflow_tools.py` 管真正注册给 Agent 的工具，`knowledge_base_agent.py` 只负责把配置和工具组装起来。
+`prompts.yml` 管提示词和描述，`rag_config.ts` 管连接配置，`knowledge_demo.ts` 演示知识库和文件操作，`ragflow_tools.ts` 管真正注册给 Agent 的工具，`knowledge_base_agent.ts` 只负责把配置和工具组装起来。
 
 这也是本项目一直保持的写法：
 

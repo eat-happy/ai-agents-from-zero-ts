@@ -1,6 +1,8 @@
 # 7 - 深度研搜：中间件机制与Skills配置
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -200,7 +202,7 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 **对应代码分支：** `07-deepagents-middleware-governance`
 
 **参考资料：**
-LangChain 内置中间件：https://docs.langchain.com/oss/python/langchain/middleware/built-in
+LangChain 内置中间件：https://docs.langchain.com/oss/javascript/langchain/middleware/built-in
 
 ---
 
@@ -1273,7 +1275,7 @@ main().catch((err) => {
 
 ### 4.5 运行结果解析
 
-运行 `13-model-call-limit-middleware.py` 时，可以重点观察两件事。
+运行 `13-model-call-limit-middleware.ts` 时，可以重点观察两件事。
 
 第一，工具确实被调用了：
 
@@ -1639,7 +1641,7 @@ wrap_tool_call = 包住一次工具调用
 
 ### 6.2 最小示例
 
-项目对应文件路径：`deepsearch-agents/examples/14-custom-tool-call-middleware.py`
+项目对应文件路径：`deepsearch-agents/examples/14-custom-tool-call-middleware.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
@@ -2410,7 +2412,7 @@ main().catch((err) => {
 
 ### 6.5 运行结果解析
 
-运行 `14-custom-tool-call-middleware.py` 时，输出很长，不需要逐字看完，重点抓住三类信息。
+运行 `14-custom-tool-call-middleware.ts` 时，输出很长，不需要逐字看完，重点抓住三类信息。
 
 第一，`request` 是一个 `ToolCallRequest`，里面最关键的是 `tool_call`：
 
@@ -2987,7 +2989,7 @@ main().catch((err) => {
 
 ### 9.2 创建 FilesystemBackend
 
-Skill 文件需要通过 Backend 暴露给 Agent。示例中把当前 Python 文件所在目录作为根目录，后续 `skills` 路径都相对于它查找。
+Skill 文件需要通过 Backend 暴露给 Agent。示例中把当前 TypeScript 文件所在目录作为根目录，后续 `skills` 路径都相对于它查找。
 
 ```typescript
 // Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts

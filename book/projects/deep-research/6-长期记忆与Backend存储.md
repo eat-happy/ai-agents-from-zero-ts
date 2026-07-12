@@ -1,6 +1,8 @@
 # 6 - 深度研搜：长期记忆与 Backend 存储
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -199,7 +201,7 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 **对应代码分支：** `06-deepagents-backends-memory`
 
 **参考资料：**
-DeepAgents 后端存储：https://docs.langchain.com/oss/python/deepagents/backends
+DeepAgents 后端存储：https://docs.langchain.com/oss/javascript/deepagents/backends
 
 ---
 
@@ -261,9 +263,9 @@ gent 仍然通过文件系统工具读写文件，但文件不一定真的落在
 
 | 文件                                       | 主题                | 说明                       |
 | ------------------------------------------ | ------------------- | -------------------------- |
-| `10-filesystem-backend-memory.py`          | `FilesystemBackend` | 把 Agent 文件写入本地目录  |
-| `11-store-backend-cross-session-memory.py` | `StoreBackend`      | 把文件操作映射到 KV Store  |
-| `12-composite-backend-routing.py`          | `CompositeBackend`  | 根据路径前缀路由到不同存储 |
+| `10-filesystem-backend-memory.ts`          | `FilesystemBackend` | 把 Agent 文件写入本地目录  |
+| `11-store-backend-cross-session-memory.ts` | `StoreBackend`      | 把文件操作映射到 KV Store  |
+| `12-composite-backend-routing.ts`          | `CompositeBackend`  | 根据路径前缀路由到不同存储 |
 
 ---
 
@@ -291,7 +293,7 @@ gent 仍然通过文件系统工具读写文件，但文件不一定真的落在
 
 ### 2.2 InMemorySaver 与 InMemoryStore 的区别
 
-第 5 章用过 `InMemorySaver`，本章会用到 `InMemoryStore`。它们名字很像，而且都可以把数据放在 Python 进程内存里，但语义完全不同。
+第 5 章用过 `InMemorySaver`，本章会用到 `InMemoryStore`。它们名字很像，而且都可以把数据放在 TypeScript 进程内存里，但语义完全不同。
 
 | 对象            | 用在哪里       | 保存什么                           | 记忆类型           |
 | --------------- | -------------- | ---------------------------------- | ------------------ |
@@ -343,7 +345,7 @@ Backend 关注的是 Agent 的文件读写结果。
 
 本地开发和调试时，我们常常希望 Agent 生成的文件真的出现在项目目录里。这样可以直接打开查看内容。
 
-项目对应文件路径：`deepsearch-agents/examples/10-filesystem-backend-memory.py`
+项目对应文件路径：`deepsearch-agents/examples/10-filesystem-backend-memory.ts`
 
 ### 3.2 准备本地工作目录
 
@@ -994,16 +996,16 @@ value = {'content': 'Name: 乌萨奇\nAge: 16', 'encoding': 'utf-8', ...}
 
 | Store 类型      | 实际保存位置         |
 | --------------- | -------------------- |
-| `InMemoryStore` | 当前 Python 进程内存 |
+| `InMemoryStore` | 当前 TypeScript 进程内存 |
 | Redis Store     | Redis                |
 | Postgres Store  | Postgres 数据库      |
 | 自定义 Store    | 企业自己的存储系统   |
 
-本章示例使用的是 `InMemoryStore`，所以数据保存在当前 Python 进程内存中，程序退出后会丢失。生产环境如果需要真正持久化，可以替换成 Redis、Postgres 或其他支持的 Store 实现。
+本章示例使用的是 `InMemoryStore`，所以数据保存在当前 TypeScript 进程内存中，程序退出后会丢失。生产环境如果需要真正持久化，可以替换成 Redis、Postgres 或其他支持的 Store 实现。
 
 ### 4.2 创建 Store
 
-项目对应文件路径：`deepsearch-agents/examples/11-store-backend-cross-session-memory.py`
+项目对应文件路径：`deepsearch-agents/examples/11-store-backend-cross-session-memory.ts`
 
 本案例中使用的是 LangGraph 的内存 Store。
 
@@ -1946,7 +1948,7 @@ user_profile.txt
 
 ### 5.2 定义 CompositeBackend 工厂函数
 
-项目对应文件路径：`deepsearch-agents/examples/12-composite-backend-routing.py`
+项目对应文件路径：`deepsearch-agents/examples/12-composite-backend-routing.ts`
 
 本案例中定义了一个工厂函数：
 

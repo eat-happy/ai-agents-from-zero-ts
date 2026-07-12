@@ -1,4 +1,4 @@
-# 4 - Python 调用 Dify 平台工作流
+# 4 - TypeScript / Node.js 调用 Dify 平台工作流
 
 <!-- TS-TRACK-BANNER -->
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
@@ -46,7 +46,7 @@ npx tsx examples/01-helloworld/index.ts
 
 
 
-本章偏**平台调用实战**：学会用 API 和 Python 调用你在 Dify 上已搭建好的工作流，把“页面里的工作流”真正变成“代码里可调用的服务”。
+本章偏**平台调用实战**：学会用 API 和 TypeScript / Node.js 调用你在 Dify 上已搭建好的工作流，把“页面里的工作流”真正变成“代码里可调用的服务”。
 
 ---
 
@@ -54,7 +54,7 @@ npx tsx examples/01-helloworld/index.ts
 
 - 知道调用前需在 Dify 中**发布工作流**，并会**创建 API 密钥**（密钥与工作流一一对应）。
 - 掌握 Dify 工作流调用最核心的 5 个要素：URL、Authorization、`inputs`、`response_mode`、`user`。
-- 能用 **Postman** 或 **Python + requests** 成功触发一个 Dify 工作流，并从流式结果里拿到最终输出。
+- 能用 **Postman** 或 **TypeScript + requests** 成功触发一个 Dify 工作流，并从流式结果里拿到最终输出。
 - 会在 Dify 工作空间里查看运行日志，把“代码侧日志”和“平台侧日志”对起来排查问题。
 
 **学习建议：** 这篇是在把 Dify 工作流从页面带到代码里。读的时候盯住五个位置：发布状态、API Key、`inputs`、流式事件、运行日志。建议先用 Postman 或 `requests` 跑通一个最小调用，再回头补字段细节；否则很容易把“接口没通”和“工作流本身没跑对”混在一起。如果你已经看过 [第 3 章](3-基于Coze&Dify平台的智能体开发.md) 的平台案例，本章会是非常自然的下一步。
@@ -77,7 +77,7 @@ Dify 会为工作流提供对应的 API 文档入口。
 
 ![Dify 工作流 API 文档入口的界面示意图](images/4/4-1-2-1.png)
 
-第一次学习时，建议你不要跳过这一步。因为后面 Python 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
+第一次学习时，建议你不要跳过这一步。因为后面 TypeScript 代码里用到的 URL、请求头、请求体结构，平台都已经给你说明了。
 
 ### 1.3 创建 API 密钥
 
@@ -135,7 +135,7 @@ http://localhost/v1/workflows/run
 | Authorization | `Bearer {api_key}` |
 | Content-Type  | `application/json` |
 
-其中 `api_key` 替换为上一步创建的密钥。
+其中 `apiKey` 替换为上一步创建的密钥。
 
 ### 2.3 请求体
 
@@ -164,7 +164,7 @@ http://localhost/v1/workflows/run
 
 ## 3、先用 Postman 验证一次
 
-这一节不是必须的，但非常推荐。因为很多问题在 Python 接入之前，先用 Postman 就能定位清楚。
+这一节不是必须的，但非常推荐。因为很多问题在 TypeScript 接入之前，先用 Postman 就能定位清楚。
 
 ### 3.1 新建 POST 请求并填写 URL
 
@@ -258,11 +258,11 @@ Body 选择 `raw`，格式选择 `JSON`。
 
 平台日志的价值非常大，因为它能告诉你：这次请求有没有真正进到工作流；哪个节点报错了；输入变量有没有传对；最终输出是不是和代码侧拿到的一致。
 
-很多时候，问题并不是 Python 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
+很多时候，问题并不是 TypeScript 代码写错，而是**工作流内部节点、变量名、工具配置**出了问题。这个时候平台日志会比本地日志更直观。
 
 ---
 
-## 5、用 Python 调用 Dify 工作流
+## 5、用 TypeScript / Node.js 调用 Dify 工作流
 
 ### 5.1 安装依赖
 
@@ -416,9 +416,9 @@ main().catch((err) => {
 
 ### 6.4 查看 Dify 后台日志
 
-对比 Dify 后台日志和 Python 控制台日志，最终运行结果应该能互相对应。
+对比 Dify 后台日志和 TypeScript 控制台日志，最终运行结果应该能互相对应。
 
-![Dify 后台日志与 Python 控制台日志对照的界面示意图](images/4/4-6-4-1.png)
+![Dify 后台日志与 TypeScript 控制台日志对照的界面示意图](images/4/4-6-4-1.png)
 
 ![Dify 后台详细运行日志与节点执行信息的界面示意图](images/4/4-6-4-2.png)
 
@@ -439,7 +439,7 @@ main().catch((err) => {
 
 **章节思考题：**
 
-1. 从页面里的 Dify 工作流，到 Python 代码调用，中间必须确认哪几个点？
+1. 从页面里的 Dify 工作流，到 TypeScript 代码调用，中间必须确认哪几个点？
 
    **参考思路：** 先确认工作流已发布，再确认 API Key、调用地址、`inputs` 字段、`response_mode`、`user` 和日志入口。页面能跑只是第一步，代码侧还要验证鉴权、参数和返回事件是否一致。
 
@@ -456,10 +456,10 @@ main().catch((err) => {
 - **调用前提**：Dify 工作流必须先发布，并创建与之绑定的 API Key。
 - **调用核心**：最关键的请求要素是 URL、Authorization、`inputs`、`response_mode` 和 `user`；它们共同决定“调哪个工作流、用什么身份、传什么输入、怎么拿结果”。
 - **返回模式要分清**：`blocking` 适合简单调用，`streaming` 更适合真实项目调试与长流程任务。
-- **排查主线**：本章最重要的不是背某段代码，而是掌握一条稳定排查路径：**平台先发布并调通 -> Postman / curl 验证 -> Python 接入 -> Dify 日志对照排查**。
+- **排查主线**：本章最重要的不是背某段代码，而是掌握一条稳定排查路径：**平台先发布并调通 -> Postman / curl 验证 -> TypeScript 接入 -> Dify 日志对照排查**。
 
 **建议下一步：**
 
-- 如果你还要继续接 Coze 平台工作流，进入 [第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
+- 如果你还要继续接 Coze 平台工作流，进入 [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-TypeScript调用Coze平台工作流.md)。
 - 如果你想把平台能力和 Agent 原理连接起来，进入 [第 21 章 Agent 智能体](21-Agent智能体.md)。
 - 如果你准备部署自己的 Dify 环境，进入 [第 6 章 Dify 的安装和启动](6-Coze与Dify的Windows平台部署.md#_4、dify-的安装和启动) 或 [第 7 章 企业级大模型部署](7-企业级大模型部署.md)。

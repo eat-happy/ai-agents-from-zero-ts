@@ -1,6 +1,8 @@
 # 1 - 深度研搜：DeepAgents 基础与核心概念
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 

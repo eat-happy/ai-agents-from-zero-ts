@@ -1,6 +1,8 @@
 # 4 - 深度研搜：接入 LangGraph 与 LangChain
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -195,7 +197,7 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 - 理解 LangGraph 子智能体为什么必须包含可累加的 `messages` 状态字段。
 - 能判断复杂子任务应该交给 LangGraph，还是交给 LangChain Agent。
 
-**学习建议：** 这一章学的是“复用现成能力”，不是重新学 LangGraph 或 LangChain。读的时候重点看 `CompiledSubAgent` 如何把已有图、Agent 或 Runnable 包成 DeepAgents 能调度的子智能体。如果 `StateGraph`、`add_messages`、条件边、`@tool`、`create_agent()` 还不熟，先回看对应章节，否则这里会像在看一层薄薄的适配胶水。
+**学习建议：** 这一章学的是“复用现成能力”，不是重新学 LangGraph 或 LangChain。读的时候重点看 `CompiledSubAgent` 如何把已有图、Agent 或 Runnable 包成 DeepAgents 能调度的子智能体。如果 `StateGraph`、`add_messages`、条件边、`@tool`、`createReactAgent()` 还不熟，先回看对应章节，否则这里会像在看一层薄薄的适配胶水。
 
 **对应代码分支：** `04-deepagents-langgraph-langchain`
 
@@ -206,7 +208,7 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 但真实项目里，经常已经有一些现成能力：
 
 - 前面用 LangGraph 写好的工作流；
-- 前面用 LangChain `create_agent()` 创建的工具型 Agent；
+- 前面用 LangChain `createReactAgent()` 创建的工具型 Agent；
 - 已经封装好的 Runnable；
 - 需要多节点状态流转、条件分支或工具选择的复杂子任务。
 
@@ -216,8 +218,8 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 
 | 文件                                    | 主题           | 本章示例的业务含义                                 |
 | --------------------------------------- | -------------- | -------------------------------------------------- |
-| `6-langgraph-subagent-wrapper.py`       | 兼容 LangGraph | 把“研究任务规划” LangGraph 工作流封装成子智能体    |
-| `7-langchain-agent-subagent-wrapper.py` | 兼容 LangChain | 把“资料检索” LangChain 工具型 Agent 封装成子智能体 |
+| `6-langgraph-subagent-wrapper.ts`       | 兼容 LangGraph | 把“研究任务规划” LangGraph 工作流封装成子智能体    |
+| `7-langchain-agent-subagent-wrapper.ts` | 兼容 LangChain | 把“资料检索” LangChain 工具型 Agent 封装成子智能体 |
 
 ---
 
@@ -573,7 +575,7 @@ main().catch((err) => {
 
 ### 3.1 这个例子解决什么问题
 
-项目对应文件路径：`deepsearch-agents/examples/6-langgraph-subagent-wrapper.py`
+项目对应文件路径：`deepsearch-agents/examples/6-langgraph-subagent-wrapper.ts`
 
 这一节的 LangGraph 示例，是一个贴近「深度研搜」场景的子能力：**研究任务规划器**。
 
@@ -593,9 +595,9 @@ main().catch((err) => {
 
 | 本章用法                  | 对应仓库案例                                                               |
 | ------------------------- | -------------------------------------------------------------------------- |
-| `messages + add_messages` | `案例与源码-3-LangGraph框架/03-state/reducers/StateReducer_AddMessages.py` |
-| 条件边                    | `案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.py`                   |
-| 多节点业务流              | `案例与源码-3-LangGraph框架/01-helloworld/LangGraphBiz.py`                 |
+| `messages + add_messages` | `案例与源码-3-LangGraph框架/03-state/reducers/StateReducer_AddMessages.ts` |
+| 条件边                    | `案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.ts`                   |
+| 多节点业务流              | `案例与源码-3-LangGraph框架/01-helloworld/LangGraphBiz.ts`                 |
 
 ### 3.2 State 为什么必须包含 messages
 
@@ -1794,7 +1796,7 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 
 ### 4.1 这个例子解决什么问题
 
-项目对应文件路径：`deepsearch-agents/examples/7-langchain-agent-subagent-wrapper.py`
+项目对应文件路径：`deepsearch-agents/examples/7-langchain-agent-subagent-wrapper.ts`
 
 这一节的 LangChain Agent 示例，是一个贴近「深度研搜」场景的子能力：**资料检索助手**。
 
@@ -1813,9 +1815,9 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 
 | 本章用法         | 对应仓库案例                                                         |
 | ---------------- | -------------------------------------------------------------------- |
-| `@tool` 工具封装 | `案例与源码-2-LangChain框架/08-tools/QueryWeatherTool.py`            |
-| `create_agent()` | `案例与源码-2-LangChain框架/12-agent/AgentSmartSelectV1.0.py`        |
-| 结构化结果意识   | `案例与源码-2-LangChain框架/05_parser/StructuredOutput_TypedDict.py` |
+| `@tool` 工具封装 | `案例与源码-2-LangChain框架/08-tools/QueryWeatherTool.ts`            |
+| `createReactAgent()` | `案例与源码-2-LangChain框架/12-agent/AgentSmartSelectV1.0.ts`        |
+| 结构化结果意识   | `案例与源码-2-LangChain框架/05_parser/StructuredOutput_TypeScript type / interface.ts` |
 
 ### 4.2 定义资料检索工具
 
@@ -2083,7 +2085,7 @@ main().catch((err) => {
 
 ### 4.3 创建 LangChain Agent
 
-接下来用 `create_agent()` 创建一个普通 LangChain Agent。
+接下来用 `createReactAgent()` 创建一个普通 LangChain Agent。
 
 ```typescript
 // Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts

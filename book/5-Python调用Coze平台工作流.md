@@ -1,4 +1,4 @@
-# 5 - Python 调用 Coze 平台工作流
+# 5 - TypeScript / Node.js 调用 Coze 平台工作流
 
 <!-- TS-TRACK-BANNER -->
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
@@ -46,7 +46,7 @@ npx tsx examples/01-helloworld/index.ts
 
 
 
-本章偏**平台调用实战**：学会用 API 和 Python 调用你在 Coze 上已搭建好的工作流，把“扣子里的工作流”接进本地代码和业务系统。
+本章偏**平台调用实战**：学会用 API 和 TypeScript / Node.js 调用你在 Coze 上已搭建好的工作流，把“扣子里的工作流”接进本地代码和业务系统。
 
 ---
 
@@ -178,13 +178,13 @@ curl -X POST 'https://api.coze.cn/v1/workflow/stream_run' \
 
 ---
 
-## 5、用 Python 调用 Coze 工作流
+## 5、用 TypeScript / Node.js 调用 Coze 工作流
 
-### 5.1 官方 Python SDK 入口
+### 5.1 官方 TypeScript SDK 入口
 
-Coze 提供了官方 Python SDK：`cozepy`。
+Coze 提供了官方 TypeScript SDK：`cozepy`。
 
-![Coze 官方 Python SDK cozepy 的文档或仓库界面示意图](images/5/5-5-1-1.png)
+![Coze 官方 TypeScript SDK cozepy 的文档或仓库界面示意图](images/5/5-5-1-1.png)
 
 ### 5.2 安装依赖
 
@@ -261,7 +261,7 @@ main().catch((err) => {
 // Real TypeScript from repo: examples/01-helloworld/index.ts
 /**
  * Maps to: 案例与源码-2-LangChain框架/01-helloworld
- * Python refs: LangChainV1.0.py, StandardDesc.py
+ * TypeScript refs: LangChainV1.0.ts, StandardDesc.ts
  */
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createChatModel } from "../../src/shared/llm.js";
@@ -290,7 +290,7 @@ main().catch((err) => {
 
 ### 5.5 运行结果
 
-![Python 调用 Coze 工作流后的运行结果界面示意图](images/5/5-5-5-1.png)
+![TypeScript / Node.js 调用 Coze 工作流后的运行结果界面示意图](images/5/5-5-5-1.png)
 
 ## 6、除了 SDK，还可以在平台侧运行
 
@@ -302,7 +302,7 @@ main().catch((err) => {
 
 1. 先在平台确认工作流逻辑跑通
 2. 再用 API playground 验证请求结构
-3. 最后再接入 Python 代码
+3. 最后再接入 TypeScript 代码
 
 这样最容易把问题分层定位，而不是平台和代码一起调，最后什么都分不清。
 
@@ -312,15 +312,15 @@ main().catch((err) => {
 
 1. 调用 Coze 工作流前，你会如何确认“平台侧已经准备好”？
 
-   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，Python 代码再完整也只会放大问题。
+   **参考思路：** 先确认工作流发布状态、Token 或鉴权方式、`workflow_id`、必要的 `app_id` / `bot_id`、输入参数和平台侧测试结果。平台侧没跑通时，TypeScript 代码再完整也只会放大问题。
 
 2. Coze 和 Dify 的接口字段不同，但调用主线为什么很像？
 
    **参考思路：** 两者本质都是把平台工作流暴露成 API：发布、鉴权、传业务参数、接收运行结果、回日志核对。字段名会变，排查顺序和工程关注点差不多。
 
-3. 如果 Python 代码没有拿到预期输出，你会如何分层排查？
+3. 如果 TypeScript 代码没有拿到预期输出，你会如何分层排查？
 
-   **参考思路：** 先在平台调试工作流，再用 API playground 或最小请求确认接口，最后看 Python 解析逻辑。这样能分清是平台配置、接口参数、鉴权，还是代码处理的问题。
+   **参考思路：** 先在平台调试工作流，再用 API playground 或最小请求确认接口，最后看 TypeScript 解析逻辑。这样能分清是平台配置、接口参数、鉴权，还是代码处理的问题。
 
 **本章小结：**
 

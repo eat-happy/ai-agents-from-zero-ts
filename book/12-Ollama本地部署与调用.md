@@ -545,7 +545,7 @@ ollama list
 
 真正的开发目标通常是：
 
-- 在 Python 代码里调用本地模型
+- 在 TypeScript 代码里调用本地模型
 - 让本地模型也能接 Prompt、Parser、LCEL、Agent
 - 让本地模型和云端模型一样，进入统一的 LangChain 生态
 
@@ -564,7 +564,7 @@ ollama list
 这意味着，它在使用体验上会和你前面学过的：
 
 - `ChatOpenAI`
-- `init_chat_model(...)`
+- `ChatOpenAI(...)`
 
 有很多共通点：
 
@@ -663,7 +663,7 @@ main().catch((err) => {
 
 ### 5.5 显式写 base_url 原因
 
-很多人会好奇：为什么有时代码里写 `base_url="http://localhost:11434"`，有时不写？
+很多人会好奇：为什么有时代码里写 `baseURL:"http://localhost:11434"`，有时不写？
 
 这里可以按下面的规则处理：
 
@@ -707,9 +707,9 @@ main().catch((err) => {
 
 ### 5.6 基本案例
 
-【案例源码】`案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py`
+【案例源码】`案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.ts`
 
-[LangChain_Ollama.py](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py ":include :type=code")
+[LangChain_Ollama.ts](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.ts ":include :type=code")
 
 这个案例是本章最核心的代码落地点。  
 它对应的是：
@@ -749,4 +749,4 @@ main().catch((err) => {
 - 本章的实践主线有两条：第一条是 **安装与模型管理**，包括下载 Ollama、规划模型目录、理解 `OLLAMA_MODELS`、掌握 `pull / run / list / rm / ps` 等常用命令；第二条是 **LangChain 接入**，也就是用 `ChatOllama` 把本地模型纳入与云端模型一致的编程方式中，继续使用 `invoke()`、消息列表和 `AIMessage` 这套统一抽象。
 - 本章更重要的不是死记所有命令，而是建立一个完整认知：**Ollama 负责把模型跑在本地，LangChain 负责把本地模型接进代码和应用流程里。** 理解这一点之后，后面的 Prompt、LCEL、Agent、RAG 都可以继续在本地模型上练习。
 
-**建议下一步：** 先亲手完成这条最小链路：安装 Ollama → `ollama run qwen:4b` 跑通一次本地模型 → 用 [LangChain_Ollama.py](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.py) 在 Python 里调通本机模型。跑通之后，再进入 [第 13 章 提示词与消息模板](13-提示词与消息模板.md)、[第 14 章 输出解析器](14-输出解析器.md)、[第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md)，把本地模型也串进完整的 LangChain 工作流里。
+**建议下一步：** 先亲手完成这条最小链路：安装 Ollama → `ollama run qwen:4b` 跑通一次本地模型 → 用 [LangChain_Ollama.ts](案例与源码-2-LangChain框架/03-ollama/LangChain_Ollama.ts) 在 TypeScript 里调通本机模型。跑通之后，再进入 [第 13 章 提示词与消息模板](13-提示词与消息模板.md)、[第 14 章 输出解析器](14-输出解析器.md)、[第 15 章 LCEL 与链式调用](15-LCEL与链式调用.md)，把本地模型也串进完整的 LangChain 工作流里。

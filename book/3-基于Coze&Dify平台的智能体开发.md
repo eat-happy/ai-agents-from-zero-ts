@@ -327,7 +327,7 @@ https://agent.xfyun.cn/home
 
 工作流最适合的场景，可以直接概括成一句话：**任务步骤大致确定，希望过程可见、可控、可复用时，优先工作流。**
 
-这也是为什么很多真实项目并不是“先做一个很聪明的 Agent”，而是先把稳定链路搭成工作流。后面你在本章案例区，以及 [第 4 章 Python 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md)、[第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md) 里会不断看到这一点。
+这也是为什么很多真实项目并不是“先做一个很聪明的 Agent”，而是先把稳定链路搭成工作流。后面你在本章案例区，以及 [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-TypeScript调用Dify平台工作流.md)、[第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-TypeScript调用Coze平台工作流.md) 里会不断看到这一点。
 
 ---
 
@@ -992,9 +992,9 @@ Agent 日志如下：
 
 ---
 
-## 8、Python 调用 Dify 或 Coze 平台工作流
+## 8、TypeScript / Node.js 调用 Dify 或 Coze 平台工作流
 
-详见 [**第 4 章（Python 调用 Dify 工作流）**](4-Python调用Dify平台工作流.md) 与 [**第 5 章（Python 调用 Coze 工作流）**](5-Python调用Coze平台工作流.md)。
+详见 [**第 4 章（TypeScript / Node.js 调用 Dify 工作流）**](4-TypeScript调用Dify平台工作流.md) 与 [**第 5 章（TypeScript / Node.js 调用 Coze 工作流）**](5-TypeScript调用Coze平台工作流.md)。
 
 ---
 
@@ -1146,6 +1146,6 @@ https://chatgpt.com/#pricing
 
 **建议下一步：**
 
-- 如果你想把平台工作流真正接进代码，继续看 [第 4 章 Python 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md) 和 [第 5 章 Python 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)。
+- 如果你想把平台工作流真正接进代码，继续看 [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-TypeScript调用Dify平台工作流.md) 和 [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-TypeScript调用Coze平台工作流.md)。
 - 如果你想继续补齐“平台智能体背后的 Agent 原理”，进入 [第 21 章 Agent 智能体](21-Agent智能体.md)。
 - 如果你想继续做平台项目实战，可以在 Coze 或 Dify 上选一个案例（如深夜情感主持、北京旅行助手、商品评论分析）从头跟做一遍并发布；若要做自动化流水线，可进入 [工作流案例](案例与源码-1-Coze&Dify工作流智能体/3.1-Coze案例：一键生成行业调研PPT/3.1-一键生成行业调研PPT.md) 学习。

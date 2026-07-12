@@ -81,7 +81,7 @@ npx tsx book/cases-langgraph/04-node/DefNode.ts
 
 ### 1.1 定义
 
-在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 Python 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
+在 LangGraph 里，**Node（节点）** 可以看作：**图中的一个可执行步骤**。它通常就是一个 TypeScript 函数，可以是同步函数，也可以是异步函数。图运行时，框架会按边的连接关系，依次或并行地调度这些节点执行。
 
 如果说 [第 23 章](23-LangGraphAPI：图与状态.md) 重点在讲“图里有哪些共享状态”，那本章开始讲的 Node，重点就在讲：**状态到了某一站之后，要做什么处理。**
 
@@ -465,13 +465,13 @@ main().catch((e) => {
 
 这个案例是第 24 章最基础、也最值得先跑通的 Node 例子。它主要演示三件事：
 
-- 节点就是 Python 函数
+- 节点就是 TypeScript 函数
 - 节点除了最基本的 `state` 参数，还可以借助 `partial` 绑定额外参数
 - `add_node(...)` 时除了传节点函数，还可以顺手挂上 `retry_policy`
 
-【案例源码】`案例与源码-3-LangGraph框架/04-node/DefNode.py`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/DefNode.ts`
 
-[DefNode.py](案例与源码-3-LangGraph框架/04-node/DefNode.py ":include :type=code")
+[DefNode.ts](案例与源码-3-LangGraph框架/04-node/DefNode.ts ":include :type=code")
 
 这个案例用来建立一个基础直觉：**Node 的重点不是“函数怎么写花哨”，而是“如何被图注册、调度、配置”。**
 
@@ -512,9 +512,9 @@ LangGraph 要真正命中缓存，通常要看三层：
 
 换句话说，**节点声明“我支持缓存”，图编译时再决定“实际用什么缓存”。**
 
-【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_Cache.py`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_Cache.ts`
 
-[Node_Cache.py](案例与源码-3-LangGraph框架/04-node/Node_Cache.py ":include :type=code")
+[Node_Cache.ts](案例与源码-3-LangGraph框架/04-node/Node_Cache.ts ":include :type=code")
 
 ### 1.9 错误处理与重试机制
 
@@ -549,9 +549,9 @@ LangGraph 用 `RetryPolicy` 来描述这件事。官方参考文档里，`RetryP
 - 自定义 `retry_on` 时，如何只对特定异常重试
 - 哪些异常会直接失败，不会进入重试流程
 
-【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.py`
+【案例源码】`案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.ts`
 
-[Node_ExpErrRetry.py](案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.py ":include :type=code")
+[Node_ExpErrRetry.ts](案例与源码-3-LangGraph框架/04-node/Node_ExpErrRetry.ts ":include :type=code")
 
 学完 Node 这一节后，你至少应该建立这个认识：**节点不只是“一个函数”，它还是图里的一个可配置执行单元，可以挂缓存、挂重试策略，也可以明确入口和出口。**
 
@@ -688,9 +688,9 @@ main().catch((e) => {
 
 重点不是业务逻辑，而是看清楚：**当边是固定的，图就像一条声明式的工作流链。**
 
-【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Normal.py`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Normal.ts`
 
-[Edge_Normal.py](案例与源码-3-LangGraph框架/05-edge/Edge_Normal.py ":include :type=code")
+[Edge_Normal.ts](案例与源码-3-LangGraph框架/05-edge/Edge_Normal.ts ":include :type=code")
 
 ### 2.5 条件边（Conditional Edges）
 
@@ -776,11 +776,11 @@ flowchart LR
 - 一个案例用布尔值或简单条件做分支
 - 另一个案例用字符串 key + mapping 做多分支映射
 
-【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.py`、`Edge_ConditionalV2.py`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.ts`、`Edge_ConditionalV2.ts`
 
-[Edge_Conditional.py](案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.py ":include :type=code")
+[Edge_Conditional.ts](案例与源码-3-LangGraph框架/05-edge/Edge_Conditional.ts ":include :type=code")
 
-[Edge_ConditionalV2.py](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalV2.py ":include :type=code")
+[Edge_ConditionalV2.ts](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalV2.ts ":include :type=code")
 
 ### 2.7 入口点与条件入口点
 
@@ -809,11 +809,11 @@ flowchart LR
 - 用 `set_entry_point` / `set_finish_point` 指定固定入口出口
 - 从 `START` 上直接挂条件边，按初始输入决定进入哪条处理链
 
-【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.py`、`Edge_ConditionalEntryPoint.py`
+【案例源码】`案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.ts`、`Edge_ConditionalEntryPoint.ts`
 
-[Edge_EntryPoint.py](案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.py ":include :type=code")
+[Edge_EntryPoint.ts](案例与源码-3-LangGraph框架/05-edge/Edge_EntryPoint.ts ":include :type=code")
 
-[Edge_ConditionalEntryPoint.py](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalEntryPoint.py ":include :type=code")
+[Edge_ConditionalEntryPoint.ts](案例与源码-3-LangGraph框架/05-edge/Edge_ConditionalEntryPoint.ts ":include :type=code")
 
 ### 2.9 条件边还能构成循环结构
 
@@ -926,9 +926,9 @@ flowchart LR
 - 下游节点针对每个主题分别生成笑话
 - 最后通过 Reducer 把多路结果合并回 State
 
-【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/SendDemo.py`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/SendDemo.ts`
 
-[SendDemo.py](案例与源码-3-LangGraph框架/06-specialApi/SendDemo.py ":include :type=code")
+[SendDemo.ts](案例与源码-3-LangGraph框架/06-specialApi/SendDemo.ts ":include :type=code")
 
 从项目角度看，Send 很适合这些场景：
 
@@ -977,9 +977,9 @@ flowchart LR
 - 为什么它既能写入 `messages`、`current_agent`、`task_completed`
 - 又能同时用 `goto` 把流程交给下一个节点，或者直接去 `END`
 
-【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.py`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.ts`
 
-[CommandDemo.py](案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.py ":include :type=code")
+[CommandDemo.ts](案例与源码-3-LangGraph框架/06-specialApi/CommandDemo.ts ":include :type=code")
 
 在真实项目里，Command 很适合：
 
@@ -1038,9 +1038,9 @@ Runtime 的价值就是把“配置”和“状态”拆开。拆开之后，Sta
 - `StateGraph(..., context_schema=ContextSchema)` 是怎么把运行时上下文挂到图上的
 - 节点里怎么通过 `runtime.context.xxx` 读取配置
 
-【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.py`
+【案例源码】`案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.ts`
 
-[RuntimeContextDemo.py](案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.py ":include :type=code")
+[RuntimeContextDemo.ts](案例与源码-3-LangGraph框架/06-specialApi/RuntimeContextDemo.ts ":include :type=code")
 
 ### 3.9 图执行时，外部能看到什么
 
@@ -1107,7 +1107,7 @@ Send、Command、Runtime 容易混，可以用下面这张表来记：
 
 **本章小结：**
 
-- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 Python 函数；除了最常见的 `state -> dict` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
+- **Node** 是 LangGraph 的最小执行单元，可以理解为被图调度的 TypeScript 函数；除了最常见的 `state -> dict` 形式，还可以结合缓存、重试策略、`config`、`runtime` 使用。
 - **Edge** 决定流程怎么流转。普通边适合固定路径，条件边适合状态驱动分支，入口点和条件入口点则决定图从哪里开始。
 - **Send、Command、Runtime** 是三种常用进阶能力：Send 适合动态并行分发，Command 适合决策节点，Runtime 适合把配置和状态拆开。
 - 这一章的重点在于建立一个完整认知：**节点负责处理，边负责流转，State 负责共享数据，进阶控制原语负责让图在运行时更灵活。** 学完本章后，你应当能够分清 **Node** 和 **Edge** 的职责，知道普通边、条件边、入口点、条件入口点分别适合什么场景，并理解 `Send`、`Command`、`Runtime` 三个进阶能力各自解决什么问题。

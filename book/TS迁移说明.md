@@ -1,16 +1,16 @@
 # TypeScript 全书迁移报告
 
 - 处理 Markdown 章节：84
-- 由 Python 生成 TypeScript 案例：127
+- 由 TypeScript 生成 TypeScript 案例：127
 - 原 TypeScript 文件保留（便于对照）：127
 
 ## 迁移策略
 
-1. **中文正文**：保留原教程讲解，仅替换 Python 技术栈表述为 TypeScript / Node.js。
+1. **中文正文**：保留原教程讲解，仅替换 TypeScript 技术栈表述为 TypeScript / Node.js。
 2. **代码块**：` ```typescript ` 自动迁移为 ` ```typescript `，并映射常见 LangChain/LangGraph API。
 3. **案例源码**：每个 `.ts` 生成同名 `.ts`；精校可运行版本在仓库 `examples/`。
 4. **低代码章节**（Coze/Dify）：平台操作与语言无关，正文保留，调用章改为 Node fetch/SDK。
-5. **微调章**：训练侧仍以 Python 生态为主，文中标注；推理/接入侧用 TS。
+5. **微调章**：训练侧仍以 TypeScript / Node.js 生态为主，文中标注；推理/接入侧用 TS。
 
 ## 建议阅读顺序
 
@@ -53,3 +53,20 @@ npm run case:supervisor
 3. 不再维护脆弱的整本机翻脚本结果
 
 若某章节代码仍显示异常，请对照章节顶部的「TypeScript 可运行示例（推荐）」与 [POLISHED-CASES](POLISHED-CASES.md)。
+
+
+## 内容切合 TS 生态
+
+正文讲解已映射到 TypeScript / Node 生态：
+
+| 原教程概念 | TS 轨道对应 |
+|-----------|------------|
+| Python | TypeScript / Node.js |
+| pip / venv | npm / nvm |
+| Pydantic | Zod |
+| FastAPI | Next.js Route Handler / Hono / Fastify |
+| SQLAlchemy | Prisma / Drizzle / TypeORM |
+| init_chat_model / create_agent | ChatOpenAI / createReactAgent |
+| HuggingFaceEndpointEmbeddings | OpenAIEmbeddings（OpenAI 兼容） |
+
+代码块来自真实仓库文件，不使用机翻。

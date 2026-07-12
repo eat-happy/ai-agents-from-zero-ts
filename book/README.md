@@ -1,7 +1,7 @@
 <div align='center'>
   <img src="./images/banner-v8.png" alt="AI 智能体教程" width="950px">
-  <h1 style="margin-top: 15px;">🚀 AI 智能体实战速成指南 · TypeScript 完整译本</h1>
-  <h4><b>ai-agents-from-zero-ts</b></h4>
+  <h1 style="margin-top: 15px;">🚀 全网最系统的 AI 智能体实战速成指南（从零到企业级落地）</h1>
+  <h4><b>ai-agents-from-zero</b></h4>
   <p><em>2026 持续更新中 · 目标打造<b>「地表最强」</b>AI Agent 教程 —— <b>系统教程 + 可跑源码 + 面试题库 + 企业级实战项目 + 长期技术栈更新</b>，全面对齐「AI 智能体 / 大模型应用开发工程师」<b>培训课表</b>与<b>招聘 JD</b>的一条龙学习路线</em></p>
 </div>
 
@@ -23,7 +23,7 @@
 
 **📢 更新说明**：**AI 不停，更新不止**。本仓库将伴随 **AI 大模型技术栈持续进化**，坚持 **开源、系统化、长期更新**。模型、框架、Agent、实战项目，都会随着生态变化持续完善和升级。它不只是帮你入门，而是陪你一路成长，从零基础到能真正落地。
 
-目前 **概念篇** 已全部更新完毕，两个完整实战项目也已更新完毕：`NL2SQL + LangGraph` 实战项目 [电商问数](projects/shop-query/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）已于 5 月 3 日完成。`DeepAgents` 多智能体实战项目 [深度研搜](projects/deep-research/0-前言.md)（[源码仓库](https://github.com/didilili/deepsearch-agents)）已于 5 月 17 日完成。你可以点击[更新日志](教程更新日志.md)，了解最新仓库动态。
+目前 **概念篇** 已全部更新完毕，两个完整实战项目也已更新完毕：`NL2SQL + LangGraph` 实战项目 [电商问数](实战项目-电商问数/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）已于 5 月 3 日完成。`DeepAgents` 多智能体实战项目 [深度研搜](实战项目-深度研搜/0-前言.md)（[源码仓库](https://github.com/didilili/deepsearch-agents)）已于 5 月 17 日完成。你可以点击[更新日志](教程更新日志.md)，了解最新仓库动态。
 
 市面上 AI 大模型应用内容很多，但绝大多数是碎片化帖子、收费训练营等；本仓库就是让你不用先花大几千甚至上万，也能系统进入大模型应用开发。若对你有帮助，欢迎 **Star** ⭐~
 
@@ -52,23 +52,11 @@
 
 ---
 
-
-> ## 📘 本仓库是什么
->
-> 这是 [didilili/ai-agents-from-zero](https://github.com/didilili/ai-agents-from-zero) 的 **TypeScript 完整学习译本**：
->
-> - **中文讲解全文保留**（概念、架构、面试题、实战项目文档）
-> - **代码与调用示例改为 TypeScript / Node.js / LangChain.js / LangGraph.js**
-> - **精校可运行示例**在仓库根目录 `examples/` 与 `apps/shop-query-agent/`
-> - 自动迁移代码若与最新 SDK 有差异，以 `examples/` 为准
->
-> 另见：[TS迁移说明.md](TS迁移说明.md) · [教程目录大纲.md](教程目录大纲.md)
-
 ## ✨ 教程亮点
 
 - **🌱 全网首个系统开源的 AI 智能体教程**：这是一套长期维护的 AI 大模型应用开发路线图。市面上不缺零散帖子，也不缺收费训练营，但真正系统、持续更新，并且覆盖 **教程 + 源码 + 实战项目 + 面试题库** 的 AI 大模型应用教程极少。本仓库要做的就是把这条路线公开、做深、做完整，陪你从入门、进阶、项目实战一路成长。
 - **🧭 一条线拉通大模型应用全栈**：从大模型与提示词，到低代码（Coze/Dify）与代码框架（LangChain/LangGraph），再到企业级 RAG/Agent、微调与工程规范——按知识体系统一编排，**完整链路**闭环，适合系统吃透而不是碎片化收藏。
-- **🐍 聚焦 TypeScript / Node.js 生态，直击 Agent 工程**：很多课程会围绕 **Spring AI**、**langchain4j** 展开，更偏 Java 技术栈。本 TypeScript 版主线聚焦 **TypeScript + LangChain.js + LangGraph.js**，直接对齐当下 AI Agent / 大模型应用开发最常用的工程路线。
+- **🐍 聚焦 TypeScript / Node.js 生态，直击 Agent 工程**：很多课程会围绕 **Spring AI**、**langchain4j** 展开，更偏 Java 技术栈。本教程主线聚焦 **TypeScript + LangChain.js + LangGraph.js**，直接对齐当下 AI Agent / 大模型应用开发最常用的工程路线。
 - **📘 零基础能进，工程师也能深挖**：整套教程按**由浅入深**的方式编排，先把大模型、Agent、RAG、MCP、Tool Calling 这些核心概念讲透，再进入源码、框架、部署和项目设计。少讲玄学黑话，多讲“为什么这么设计、代码怎么跑、项目怎么落地”。
 - **💼 企业级实战，对标「能干活」**：以电商问数、深度研搜、掌柜智库、电商小二等为主线，串起意图解析、多源知识、转人工、复盘与监控；把 **多路召回、评测、观测、成本、护栏** 放进真实语境里练。写简历、讲项目有抓手、不空泛。
 - **✅ 每个案例都以“能跑起来”为标准**：不只是讲概念或贴伪代码，而是尽量提供**可运行案例、源码、环境说明和常见问题排查**。案例内容均按人工实际跑通的思路整理，帮助你少踩坑、尽快上手。
@@ -90,7 +78,7 @@
 | **文档与多模态** | MinerU、OCR                                 | 图文混排 PDF 解析、设备手册与售后指南                                            |
 | **部署与运维**   | Docker、Ollama、Xinference、vLLM            | 腾讯云/阿里云、AutoDL、Coze 本地部署                                             |
 | **微调与训练**   | PEFT、LoRA、QLoRA、DeepSpeed、Llama-Factory | Alpaca/ShareGPT 数据格式、Safetensors/ONNX                                       |
-| **编程与工具**   | Python；Codex、Cursor                       | 主语言为 Python；覆盖 AI 编程工具、Agent Skills、多模型 API、MCP 接入与调试      |
+| **编程与工具**   | TypeScript；Codex、Cursor                       | 主语言为 TypeScript；覆盖 AI 编程工具、Agent Skills、多模型 API、MCP 接入与调试      |
 | **求职与面试**   | 面试题库                                    | 按岗位能力域组织 **问法 + 答法**；对齐同类**线上培训结业能力**与 **JD** 高频考点 |
 
 ---
@@ -148,14 +136,14 @@
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 掌柜智库                                | LangGraph RAG 工作流、MinerU/OCR、向量+稀疏+Neo4j 多路召回、HyDE/BGE-Rerank、RAGAS 评估                                                                                                |
 | 电商小二                                | 意图解析、多源知识库、流式回复、转人工机制、对话复盘、多渠道与监控                                                                                                                     |
-| [电商问数](projects/shop-query/0-前言.md) | 围绕自然语言问数，完整串起 MySQL 数仓、元数据知识库、Qdrant 向量检索、Elasticsearch 字段值检索、LangGraph 工作流、SQL 生成校验执行、Next.js / Hono / Fastify SSE 和前后端联调                           |
-| [深度研搜](projects/deep-research/0-前言.md) | 基于 [DeepAgents](projects/deep-research/1-DeepAgents基础与核心概念.md) 搭建多智能体研究系统，串起网络搜索、MySQL 查询、RAGFlow 知识库、文件读取生成、Next.js / Hono / Fastify 接口和 WebSocket 实时进度回传 |
+| [电商问数](实战项目-电商问数/0-前言.md) | 围绕自然语言问数，完整串起 MySQL 数仓、元数据知识库、Qdrant 向量检索、Elasticsearch 字段值检索、LangGraph 工作流、SQL 生成校验执行、Next.js / Hono / Fastify SSE 和前后端联调                           |
+| [深度研搜](实战项目-深度研搜/0-前言.md) | 基于 [DeepAgents](实战项目-深度研搜/1-DeepAgents基础与核心概念.md) 搭建多智能体研究系统，串起网络搜索、MySQL 查询、RAGFlow 知识库、文件读取生成、Next.js / Hono / Fastify 接口和 WebSocket 实时进度回传 |
 | 市场罗盘                                | 场景化任务拆解、从 0 到 1 设计与开发、阶段目标与进度管控、代码评审与成果展示                                                                                                           |
 
 > **已完成实战项目推荐：**
 >
-> - [电商问数](projects/shop-query/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）：不是简单的 SQL 生成 Demo，而是把 `MySQL`、`LangGraph`、`Qdrant`、`Elasticsearch`、`Next.js / Hono / Fastify` 等知识点放进同一条可运行的智能问数链路里。
-> - [深度研搜](projects/deep-research/0-前言.md)（[源码仓库](https://github.com/didilili/deepsearch-agents)）：不是普通聊天框，而是围绕开放研究任务，把主智能体调度、子智能体分工、多来源资料检索、文件生成交付和前后端实时联动做成一条完整闭环。
+> - [电商问数](实战项目-电商问数/0-前言.md)（[源码仓库](https://github.com/didilili/shopkeeper-agent)）：不是简单的 SQL 生成 Demo，而是把 `MySQL`、`LangGraph`、`Qdrant`、`Elasticsearch`、`Next.js / Hono / Fastify` 等知识点放进同一条可运行的智能问数链路里。
+> - [深度研搜](实战项目-深度研搜/0-前言.md)（[源码仓库](https://github.com/didilili/deepsearch-agents)）：不是普通聊天框，而是围绕开放研究任务，把主智能体调度、子智能体分工、多来源资料检索、文件生成交付和前后端实时联动做成一条完整闭环。
 
 ### 05 大模型微调实践
 
@@ -194,13 +182,13 @@
    cd ai-agents-from-zero
    ```
 
-2. **准备环境**（推荐 Python 3.10，支持 3.10–3.13）
+2. **准备环境**（推荐 TypeScript 3.10，支持 3.10–3.13）
 
    ```bash
    python3.10 -m venv .venv
    source .venv/bin/activate          # macOS/Linux
    # .venv\Scripts\activate           # Windows CMD
-   npm install -r package.json
+   pip install -r requirements.txt
    ```
 
 3. **配置 API Key**
@@ -211,7 +199,7 @@
 4. **在项目根目录运行第一个案例**
 
    ```bash
-   python cases-langchain/01-helloworld/StandardDesc.ts
+   python 案例与源码-2-LangChain框架/01-helloworld/StandardDesc.py
    ```
 
    **注意**：必须在**项目根目录**执行 `python`，否则会读不到 `.env`。若不想用云 API，可使用 [Ollama 本地模型](新手入门与常见问题.md#_54-不想用云-api：用本地-ollama（无需-key）)（无需 Key）。
@@ -229,8 +217,8 @@
 ## 📖 关于本仓库
 
 - **目标**：做一套**真正适合入门、系统、且长期更新的 AI 智能体实战速成教程**，不仅把概念讲清楚，也把案例跑起来，让你从 0 到能独立做 **RAG / Agent / 多智能体** 类项目，并能用工程化语言讲清楚自己的方案与项目。
-- **技术定位**：聚焦 **Python 智能体开发路线**，重点讲 **LangChain / LangGraph** 及相关工程实践，**不走 Spring AI / langchain4j 的 Java 路线**，更适合想直接进入 Python 大模型应用开发的同学。
-- **教程来源**：参考**尚硅谷《大模型智能体速成班》**等课程资料，并在此基础上结合公开文档、社区实践与项目经验持续**重构、补充与维护**，逐步整理成一套 **Python 智能体应用开发** 的系统化学习资料。
+- **技术定位**：聚焦 **TypeScript 智能体开发路线**，重点讲 **LangChain / LangGraph** 及相关工程实践，**不走 Spring AI / langchain4j 的 Java 路线**，更适合想直接进入 TypeScript 大模型应用开发的同学。
+- **教程来源**：参考**尚硅谷《大模型智能体速成班》**等课程资料，并在此基础上结合公开文档、社区实践与项目经验持续**重构、补充与维护**，逐步整理成一套 **TypeScript 智能体应用开发** 的系统化学习资料。
 - **面试题来源**：题库中有相当一部分题目整理自**大厂真实面试题**、公开面经与高频追问场景，并结合本仓库的章节主线做了工程化重构，更适合按项目和系统设计视角复习。
 - **内容构成**：**系统章节笔记** + **可运行案例源码** + **[面试题库](AI智能体与大模型应用开发面试题库.md)** （对标**同类线上培训**与**社招/校招 JD**）。
 

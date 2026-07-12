@@ -287,14 +287,14 @@ code-reviewer/
     review-template.md
 ```
 
-![Skill 扩展目录结构：code-reviewer 技能包由 SKILL.md、requirements.txt、references、scripts 与 assets 组成，并由 Agent 按需加载](images/27/27-3-4-1.png)
+![Skill 扩展目录结构：code-reviewer 技能包由 SKILL.md、package.json、references、scripts 与 assets 组成，并由 Agent 按需加载](images/27/27-3-4-1.png)
 
 各目录职责如下：
 
 | 路径               | 作用                           |
 | ------------------ | ------------------------------ |
 | `SKILL.md`         | 技能说明、触发规则、执行步骤   |
-| `requirements.txt` | 这个技能需要的 Python 依赖     |
+| `package.json` | 这个技能需要的 TypeScript 依赖     |
 | `references/`      | 技能需要参考的文档、规范和模板 |
 | `scripts/`         | 技能执行时可能调用的脚本       |
 | `assets/`          | 样例、图片、表格、素材文件     |
@@ -433,7 +433,7 @@ description: 当用户要求审查 Markdown 技术教程的结构、标题层级
 | ----------------- | -------------------------------- | -------------------------------------------- |
 | Prompt            | 当前任务的一次性要求             | “把这段文字改成更口语化”                     |
 | Rules / AGENTS.md | 几乎每次都相关的项目规则         | “本项目用 pnpm”“API 返回结构统一”            |
-| Memory            | 历史事实、用户偏好、长期状态     | “用户喜欢简洁回答”“这个项目已经迁到 FastAPI” |
+| Memory            | 历史事实、用户偏好、长期状态     | “用户喜欢简洁回答”“这个项目已经迁到 Next.js / Hono / Fastify” |
 | Skill             | 特定任务才需要的流程、模板和资源 | “代码审查流程”“周报模板”“SQL 生成规范”       |
 
 一句话速记：
@@ -497,7 +497,7 @@ Skill 是一个能力包，可以挂在主 Agent 或 Subagent 上。
 
 | 要点         | 示例                                             |
 | ------------ | ------------------------------------------------ |
-| 做什么       | 审查 Python / FastAPI 后端代码                   |
+| 做什么       | 审查 TypeScript / Next.js / Hono / Fastify 后端代码                   |
 | 什么时候用   | 当用户要求 code review、查找 bug 或安全风险时    |
 | 处理什么输入 | diff、PR、文件路径、代码片段                     |
 | 不要太泛     | 不要写成“帮助写代码”这种所有场景都可能匹配的描述 |

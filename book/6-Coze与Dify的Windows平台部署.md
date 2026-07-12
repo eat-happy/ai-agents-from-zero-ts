@@ -107,7 +107,7 @@ Coze 开源后，本地部署多了一条选择。以前很多 B 端交付会优
 
 如果目标是尽快跑通流程，优先选择云端 API；如果更在意私有化和数据可控，再考虑 Ollama。
 
-> **关键提醒：** 如果页面能打开，但看不到模型、调不了应用，优先检查模型配置文件里的 `api_key`、`model`、`endpoint`，以及本地 Ollama 服务是否正常，而不是一上来就怀疑前端页面。
+> **关键提醒：** 如果页面能打开，但看不到模型、调不了应用，优先检查模型配置文件里的 `apiKey`、`model`、`endpoint`，以及本地 Ollama 服务是否正常，而不是一上来就怀疑前端页面。
 
 ---
 
@@ -229,7 +229,7 @@ ollama pull qwen2.5:7b
 
 修改配置文件中的：
 
-- `base_url`：通常填写 `http://host.docker.internal:11434`
+- `baseURL`：通常填写 `http://host.docker.internal:11434`
 - `model`：填写你通过 Ollama 拉取的模型名，例如 `qwen2.5:7b`
 
 ![修改 Ollama 模型配置文件 base_url 和 model 的界面](images/6/6-2-2-15.png)
@@ -434,7 +434,7 @@ coze-loop-main\release\deployment\docker-compose\conf\model_config.yaml
 
 以火山方舟为例，需要修改：
 
-- `api_key`：火山方舟 API Key，可参考前面 Coze Studio 的创建方式。
+- `apiKey`：火山方舟 API Key，可参考前面 Coze Studio 的创建方式。
 - `model`：火山方舟模型接入点的 Endpoint ID。
 
 ![配置 Coze Loop model_config.yaml 的界面](images/6/6-4-4-1.png)

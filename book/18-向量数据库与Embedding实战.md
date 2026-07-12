@@ -386,9 +386,9 @@ LangChain 官方则进一步强调了两个 API：
 - 返回结果结构大概长什么样
 - 向量通常是怎样的一串浮点数
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopeHello.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopeHello.ts`
 
-[Text2Embedding_DashScopeHello.py](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopeHello.py ":include :type=code")
+[Text2Embedding_DashScopeHello.ts](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopeHello.ts ":include :type=code")
 
 学习这个案例时，建议你重点观察：
 
@@ -398,13 +398,13 @@ LangChain 官方则进一步强调了两个 API：
 
 ### 4.4 案例：OpenAI 兼容写法，理解“同一能力，不同接法”
 
-很多平台虽然不是 OpenAI，但会提供 **OpenAI 兼容接口**。这意味着你可以继续用 OpenAI SDK 的调用方式，只是把：`base_url`、`api_key`、`model`改成对应平台的配置即可。
+很多平台虽然不是 OpenAI，但会提供 **OpenAI 兼容接口**。这意味着你可以继续用 OpenAI SDK 的调用方式，只是把：`baseURL`、`apiKey`、`model`改成对应平台的配置即可。
 
 这个案例的价值在真实项目里非常大，因为它会让你意识到：**很多时候你真正学的不是“某一家厂商的私有 SDK”，而是一种通用接入模式。**
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_OpenAiHello.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_OpenAiHello.ts`
 
-[Text2Embedding_OpenAiHello.py](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_OpenAiHello.py ":include :type=code")
+[Text2Embedding_OpenAiHello.ts](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_OpenAiHello.ts ":include :type=code")
 
 ### 4.5 案例：用 LangChain 的统一接口做单条与批量向量化
 
@@ -417,9 +417,9 @@ LangChain 官方则进一步强调了两个 API：
 
 这两个方法，基本就是后面做检索的“索引阶段”和“查询阶段”的缩影。
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScope.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScope.ts`
 
-[Text2Embedding_DashScope.py](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScope.py ":include :type=code")
+[Text2Embedding_DashScope.ts](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScope.ts ":include :type=code")
 
 运行时你可以特别留意：单条返回的是一个向量；批量返回的是“向量列表”；len(向量)对应维度。
 
@@ -432,9 +432,9 @@ LangChain 官方则进一步强调了两个 API：
 1. **Embedding 的思想不只适用于文本。**
 2. **本章先把文本 Embedding 学稳，多模态后面按需拓展。**
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopePro.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopePro.ts`
 
-[Text2Embedding_DashScopePro.py](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopePro.py ":include :type=code")
+[Text2Embedding_DashScopePro.ts](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_DashScopePro.ts ":include :type=code")
 
 ---
 
@@ -511,9 +511,9 @@ OpenAI 官方文档里也明确提到：在很多 Embedding 场景里，**余弦
 3. 用 `numpy` 手动计算余弦相似度
 4. 打印两两比较结果
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_CosSimilarity.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/Text2Embedding_CosSimilarity.ts`
 
-[Text2Embedding_CosSimilarity.py](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_CosSimilarity.py ":include :type=code")
+[Text2Embedding_CosSimilarity.ts](案例与源码-2-LangChain框架/09-embedding/Text2Embedding_CosSimilarity.ts ":include :type=code")
 
 学习这个案例时，建议重点抓住两件事：
 
@@ -563,9 +563,9 @@ OpenAI 官方文档里也明确提到：在很多 Embedding 场景里，**余弦
 - 检索出来的结果不是“向量本身”，而是对应的 `Document`
 - 这正是 RAG 后面能把检索结果塞回 Prompt 的基础
 
-【案例源码】`案例与源码-2-LangChain框架/09-embedding/EmbeddingStoreRedis.py`
+【案例源码】`案例与源码-2-LangChain框架/09-embedding/EmbeddingStoreRedis.ts`
 
-[EmbeddingStoreRedis.py](案例与源码-2-LangChain框架/09-embedding/EmbeddingStoreRedis.py ":include :type=code")
+[EmbeddingStoreRedis.ts](案例与源码-2-LangChain框架/09-embedding/EmbeddingStoreRedis.ts ":include :type=code")
 
 运行后，你可以在 RedisInsight 里看到类似下图的结构：
 
@@ -589,9 +589,9 @@ OpenAI 官方文档里也明确提到：在很多 Embedding 场景里，**余弦
 
 这个案例适合帮助你理解另一种常见思路：**先创建一个向量库实例，再持续往里面追加文本。**
 
-【案例源码】`案例与源码-2-LangChain框架/10-rag/RedisVectorStore.py`
+【案例源码】`案例与源码-2-LangChain框架/10-rag/RedisVectorStore.ts`
 
-[RedisVectorStore.py](案例与源码-2-LangChain框架/10-rag/RedisVectorStore.py ":include :type=code")
+[RedisVectorStore.ts](案例与源码-2-LangChain框架/10-rag/RedisVectorStore.ts ":include :type=code")
 
 这个案例有几个学习重点：
 
@@ -616,9 +616,9 @@ OpenAI 官方文档里也明确提到：在很多 Embedding 场景里，**余弦
 - 在 Redis 中找最相近的若干条文本
 - 返回 `(Document, score)` 结果
 
-【案例源码】`案例与源码-2-LangChain框架/10-rag/RedisVectorStore_SimilaritySearch.py`
+【案例源码】`案例与源码-2-LangChain框架/10-rag/RedisVectorStore_SimilaritySearch.ts`
 
-[RedisVectorStore_SimilaritySearch.py](案例与源码-2-LangChain框架/10-rag/RedisVectorStore_SimilaritySearch.py ":include :type=code")
+[RedisVectorStore_SimilaritySearch.ts](案例与源码-2-LangChain框架/10-rag/RedisVectorStore_SimilaritySearch.ts ":include :type=code")
 
 这里需要先区分 `score` 的含义：
 
@@ -723,6 +723,6 @@ OpenAI 官方文档里也明确提到：在很多 Embedding 场景里，**余弦
 
 **建议下一步：**
 
-1. 先把 `09-embedding` 目录下的案例按顺序跑一遍，尤其是 `Text2Embedding_DashScope.py`、`Text2Embedding_CosSimilarity.py`、`EmbeddingStoreRedis.py`。
-2. 再运行 `10-rag` 目录下的 `RedisVectorStore.py` 和 `RedisVectorStore_SimilaritySearch.py`，对比两种 Redis 向量库写法。
+1. 先把 `09-embedding` 目录下的案例按顺序跑一遍，尤其是 `Text2Embedding_DashScope.ts`、`Text2Embedding_CosSimilarity.ts`、`EmbeddingStoreRedis.ts`。
+2. 再运行 `10-rag` 目录下的 `RedisVectorStore.ts` 和 `RedisVectorStore_SimilaritySearch.ts`，对比两种 Redis 向量库写法。
 3. 学完本章后继续阅读 [第 19 章 RAG 检索增强生成](19-RAG检索增强生成.md)，把本章的向量能力接到完整 RAG 流程里。

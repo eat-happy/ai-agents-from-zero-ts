@@ -1,6 +1,8 @@
-# 14 - 深度研搜：FastAPI 接口与项目闭环
+# 14 - 深度研搜：Next.js / Hono / Fastify 接口与项目闭环
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -61,14 +63,14 @@ npx tsx examples/04-output-parser/index.ts
 
 **本章课程目标：**
 
-- 完成 DeepAgents 多智能体系统的 FastAPI 接口层。
+- 完成 DeepAgents 多智能体系统的 Next.js / Hono / Fastify 接口层。
 - 看懂 `/api/task`、`/api/task/{thread_id}/cancel`、`/api/upload`、`/api/files`、`/api/download`、`/ws/{thread_id}` 这六个入口分别接住前端哪一步动作。
 - 理解为什么 `/api/task` 只负责启动后台任务，而不直接等待主智能体返回最终结果。
-- 掌握 `asyncio.create_task()`、`active_tasks` 和任务取消之间的关系。
-- 理解 WebSocket 为什么要绑定 FastAPI 的事件循环，以及 `run_coroutine_threadsafe()` 解决什么问题。
+- 掌握 `async/await.create_task()`、`active_tasks` 和任务取消之间的关系。
+- 理解 WebSocket 为什么要绑定 Next.js / Hono / Fastify 的事件循环，以及 `run_coroutine_threadsafe()` 解决什么问题。
 - 按课堂路径完成闭环验证：前端连接、上传文件、发起任务、查看进度、生成 Markdown/PDF、下载文件。
 
-**学习建议：** 这一章不是又开一条新知识线，而是把前面几章串起来。读的时候可以把自己放在浏览器旁边：先看页面发了什么请求，再看 FastAPI 把任务交给谁，最后看 `monitor` 怎么把进度推回页面。只要能把一次任务从页面追到日志，再从日志追回页面，这个项目就真正跑通了。
+**学习建议：** 这一章不是又开一条新知识线，而是把前面几章串起来。读的时候可以把自己放在浏览器旁边：先看页面发了什么请求，再看 Next.js / Hono / Fastify 把任务交给谁，最后看 `monitor` 怎么把进度推回页面。只要能把一次任务从页面追到日志，再从日志追回页面，这个项目就真正跑通了。
 
 **对应代码分支：** `14-deepsearch-api-websocket`
 
@@ -87,7 +89,7 @@ npx tsx examples/04-output-parser/index.ts
   -> 下载 Markdown / PDF
 ```
 
-这些入口统一放在 `deepsearch-agents/app/api/server.py`。
+这些入口统一放在 `deepsearch-agents/app/api/server.ts`。
 
 本章按这条路线展开：
 
@@ -104,9 +106,9 @@ npx tsx examples/04-output-parser/index.ts
 
 ## 1、先把接口放到完整闭环里看
 
-项目对应文件路径：`deepsearch-agents/app/api/server.py`
+项目对应文件路径：`deepsearch-agents/app/api/server.ts`
 
-`server.py` 是整个项目的“接口层”。它不负责写搜索工具，也不负责设计主智能体提示词；它负责把浏览器里的动作翻译成后端能执行的任务，再把后端执行过程送回浏览器。
+`server.ts` 是整个项目的“接口层”。它不负责写搜索工具，也不负责设计主智能体提示词；它负责把浏览器里的动作翻译成后端能执行的任务，再把后端执行过程送回浏览器。
 
 可以先把它理解成两条通道：
 
@@ -194,9 +196,9 @@ sequenceDiagram
 
 ---
 
-## 2、server.py 先准备什么
+## 2、server.ts 先准备什么
 
-进入接口函数之前，`server.py` 先做几件基础准备：定义服务生命周期、创建 FastAPI 应用、准备两个文件目录、声明后台任务表、配置跨域。
+进入接口函数之前，`server.ts` 先做几件基础准备：定义服务生命周期、创建 Next.js / Hono / Fastify 应用、准备两个文件目录、声明后台任务表、配置跨域。
 
 ### 2.1 应用对象、目录和后台任务表
 
@@ -248,8 +250,8 @@ main().catch((err) => {
 
 | 对象           | 作用                                                               |
 | -------------- | ------------------------------------------------------------------ |
-| `lifespan`     | 服务生命周期入口，启动时把 FastAPI 事件循环绑定到 WebSocket 管理器 |
-| `active_tasks` | 保存 `thread_id -> asyncio.Task`，后面取消任务要靠它找任务         |
+| `lifespan`     | 服务生命周期入口，启动时把 Next.js / Hono / Fastify 事件循环绑定到 WebSocket 管理器 |
+| `active_tasks` | 保存 `thread_id -> async/await.Task`，后面取消任务要靠它找任务         |
 | `updated/`     | 项目里的上传暂存目录，用户上传的附件先放这里                       |
 | `output/`      | 每个会话最终工作区，生成的 Markdown、PDF 和复制后的附件都在这里    |
 
@@ -341,7 +343,7 @@ main().catch((err) => {
 });
 ```
 
-随后创建应用时，把它交给 FastAPI：
+随后创建应用时，把它交给 Next.js / Hono / Fastify：
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
@@ -379,7 +381,7 @@ main().catch((e) => {
 });
 ```
 
-这一步是让 `ConnectionManager` 在服务启动阶段记住 FastAPI 当前的事件循环。
+这一步是让 `ConnectionManager` 在服务启动阶段记住 Next.js / Hono / Fastify 当前的事件循环。
 
 为什么要记住它？因为 WebSocket 对象是在这个事件循环里创建的。后面如果工具调用、DeepAgents 执行链或其他异步任务不在同一个执行环境里，发送 WebSocket 消息时就要把协程安全地投递回这个 loop。
 
@@ -593,7 +595,7 @@ main().catch((e) => {
 });
 ```
 
-不要在 FastAPI 接口里写成：
+不要在 Next.js / Hono / Fastify 接口里写成：
 
 ```typescript
 // Real TypeScript from repo: examples/04-output-parser/index.ts
@@ -637,12 +639,12 @@ main().catch((err) => {
 });
 ```
 
-原因很简单：FastAPI/uvicorn 已经在运行事件循环了。`asyncio.run()` 的职责是创建一个新的事件循环并运行协程，它适合脚本入口，不适合放在一个已经处于事件循环里的接口函数中。
+原因很简单：Next.js / Hono / Fastify/node server 已经在运行事件循环了。`async/await.run()` 的职责是创建一个新的事件循环并运行协程，它适合脚本入口，不适合放在一个已经处于事件循环里的接口函数中。
 
 | 写法                        | 做什么                         | 是否适合本接口              |
 | --------------------------- | ------------------------------ | --------------------------- |
-| `asyncio.run(coro)`         | 创建事件循环并跑完协程         | 不适合，FastAPI 已经有 loop |
-| `asyncio.create_task(coro)` | 把协程放进当前事件循环后台执行 | 适合                        |
+| `async/await.run(coro)`         | 创建事件循环并跑完协程         | 不适合，Next.js / Hono / Fastify 已经有 loop |
+| `async/await.create_task(coro)` | 把协程放进当前事件循环后台执行 | 适合                        |
 
 可以这样理解：
 
@@ -654,7 +656,7 @@ FastAPI 已经有一个正在跑的大 loop
   -> monitor 通过 WebSocket 持续推送进度
 ```
 
-这也是本章和上一章脚本测试的区别。上一章本地验证 `main_agent.py` 时可以用 `asyncio.run(...)`，因为那是脚本入口；本章进入 Web 服务后，要把长任务交给已有事件循环。
+这也是本章和上一章脚本测试的区别。上一章本地验证 `main_agent.ts` 时可以用 `async/await.run(...)`，因为那是脚本入口；本章进入 Web 服务后，要把长任务交给已有事件循环。
 
 ### 3.4 /api/task/{thread_id}/cancel：给后台任务发取消信号
 
@@ -708,7 +710,7 @@ main().catch((e) => {
 
 ### 3.5 主智能体如何配合取消
 
-`app/agent/main_agent.py` 里也有对应处理：
+`app/agent/main_agent.ts` 里也有对应处理：
 
 ```typescript
 // Real TypeScript from repo: examples/04-output-parser/index.ts
@@ -1193,7 +1195,7 @@ error          -> 退出运行态，展示错误信息
 
 ### 5.4 monitor 如何找到对应 WebSocket
 
-项目对应文件路径：`deepsearch-agents/app/api/monitor.py`
+项目对应文件路径：`deepsearch-agents/app/api/monitor.ts`
 
 `monitor._emit(...)` 会先组装统一消息：
 
@@ -1420,12 +1422,12 @@ main().catch((err) => {
 
 这段代码解决的是：调用 `monitor` 的地方，不一定和 WebSocket 创建时处于同一个事件循环。
 
-在普通本地调试里，你可能感觉所有代码都跑在一个地方。但真实运行中，FastAPI、异步流式执行、工具调用、第三方库封装之间可能有不同的执行上下文。WebSocket 发送动作最好回到它创建时所在的 loop。
+在普通本地调试里，你可能感觉所有代码都跑在一个地方。但真实运行中，Next.js / Hono / Fastify、异步流式执行、工具调用、第三方库封装之间可能有不同的执行上下文。WebSocket 发送动作最好回到它创建时所在的 loop。
 
 | 情况                                     | 做法                                                        |
 | ---------------------------------------- | ----------------------------------------------------------- |
 | 当前 loop 就是 WebSocket 所在 loop       | `current_loop.create_task(coroutine)`                       |
-| 当前不在同一个 loop，或没有 running loop | `asyncio.run_coroutine_threadsafe(coroutine, manager_loop)` |
+| 当前不在同一个 loop，或没有 running loop | `async/await.run_coroutine_threadsafe(coroutine, manager_loop)` |
 
 `run_coroutine_threadsafe()` 可以理解成：
 
@@ -1456,9 +1458,9 @@ uvicorn app.api.server:app --host 0.0.0.0 --port 8000 --reload
 [Server] WebSocket Manager bound to loop: 123456789
 ```
 
-看到这行，说明 FastAPI 启动时已经把事件循环绑定到 WebSocket 管理器。
+看到这行，说明 Next.js / Hono / Fastify 启动时已经把事件循环绑定到 WebSocket 管理器。
 
-代码文件底部也保留了直接运行入口。课堂验证时建议优先使用上面的 `uvicorn app.api.server:app ...` 命令，因为模块路径和运行目录更清楚。
+代码文件底部也保留了直接运行入口。课堂验证时建议优先使用上面的 `node server app.api.server:app ...` 命令，因为模块路径和运行目录更清楚。
 
 ### 6.2 刷新前端，先建立 WebSocket
 
@@ -1529,7 +1531,7 @@ GET /api/download?path=.../机器人信息.pdf
 
 ![深度研搜执行过程页面：前端实时展示网络搜索工具调用、tool_start 事件、task_result 事件和主智能体整理后的回答](images/0/0-2-0-2.png)
 
-浏览器触发下载。到这一步，前端、FastAPI、主智能体、文件工具和 WebSocket 推送就全部跑通了。
+浏览器触发下载。到这一步，前端、Next.js / Hono / Fastify、主智能体、文件工具和 WebSocket 推送就全部跑通了。
 
 ---
 
@@ -1538,7 +1540,7 @@ GET /api/download?path=.../机器人信息.pdf
 本章把 DeepAgents 多智能体系统包装成了可以被前端调用的 Web 服务。你需要重点记住七件事：
 
 1. `/api/task` 只启动任务，不等待最终结果。
-2. `active_tasks` 记录 `thread_id -> asyncio.Task`，让任务替换和主动取消成为可能。
+2. `active_tasks` 记录 `thread_id -> async/await.Task`，让任务替换和主动取消成为可能。
 3. `/api/task/{thread_id}/cancel` 通过 `task.cancel()` 发出取消信号，真正的取消状态还会通过 `task_cancelled` 事件通知前端。
 4. 上传文件先进入 `updated/session_xxx`，任务启动后复制到 `output/session_xxx`。
 5. 前端只允许查看和下载 `output` 目录下的文件，路径安全检查不能省。
@@ -1555,7 +1557,7 @@ GET /api/download?path=.../机器人信息.pdf
 
 ![深度研搜完整闭环：前端通过 HTTP 启动任务、通过 WebSocket 查看进度，后台主智能体调度子智能体和文件工具，最终返回回答、Markdown、PDF 和下载入口](images/14/14-summary-1.svg)
 
-从实际代码看，这条主线最终落在 `app/agent/main_agent.py`：主智能体通过 `create_deep_agent()` 组装模型、主提示词、三个文件工具、三个专家子智能体和 `InMemorySaver` 检查点；`run_deep_agent()` 则负责创建会话目录、复制上传文件、写入 `ContextVar`、调用 `main_agent.astream()`，并把子智能体调用、工具调用、最终结果和异常通过 `monitor` 推给前端。
+从实际代码看，这条主线最终落在 `app/agent/main_agent.ts`：主智能体通过 `create_deep_agent()` 组装模型、主提示词、三个文件工具、三个专家子智能体和 `InMemorySaver` 检查点；`run_deep_agent()` 则负责创建会话目录、复制上传文件、写入 `ContextVar`、调用 `main_agent.astream()`，并把子智能体调用、工具调用、最终结果和异常通过 `monitor` 推给前端。
 
 ### 1、这个项目最终完成了什么
 
@@ -1580,13 +1582,13 @@ GET /api/download?path=.../机器人信息.pdf
 
 | 层次       | 主要内容                                                                            |
 | ---------- | ----------------------------------------------------------------------------------- |
-| 配置层     | `.env`、`prompts.yml`、`llm.py`、`prompts.py`，集中管理模型、提示词和外部服务配置   |
-| 上下文层   | `context.py` 保存 `thread_id` 和 `session_dir`，让深层工具不用层层传参              |
-| 监控层     | `monitor.py` 统一包装 `tool_start`、`assistant_call`、`task_result`、`error` 等事件 |
+| 配置层     | `.env`、`prompts.yml`、`llm.ts`、`prompts.ts`，集中管理模型、提示词和外部服务配置   |
+| 上下文层   | `context.ts` 保存 `thread_id` 和 `session_dir`，让深层工具不用层层传参              |
+| 监控层     | `monitor.ts` 统一包装 `tool_start`、`assistant_call`、`task_result`、`error` 等事件 |
 | 专家层     | 网络搜索助手、数据库查询助手、RAGFlow 知识库助手，各自只处理一种信息来源            |
 | 工具层     | Tavily、MySQL、RAGFlow、文件读取、Markdown 生成、PDF 转换等真实能力                 |
-| 主智能体层 | `main_agent.py` 负责统筹任务、选择助手、汇总信息和调用文件工具                      |
-| API 层     | `server.py` 提供任务启动、取消、上传、文件列表、下载和 WebSocket 连接               |
+| 主智能体层 | `main_agent.ts` 负责统筹任务、选择助手、汇总信息和调用文件工具                      |
+| API 层     | `server.ts` 提供任务启动、取消、上传、文件列表、下载和 WebSocket 连接               |
 | 前端层     | 发送任务、上传文件、展示实时事件、查看和下载最终产物                                |
 
 这也是本项目和普通 RAG 示例最大的区别：它不是单一路径的“检索后回答”，而是把公开网络、结构化数据库、私有知识库和临时上传文件都放进了同一条可运行的研究链路里。
@@ -1599,7 +1601,7 @@ GET /api/download?path=.../机器人信息.pdf
 
 中间部分解决“专家助手怎么分工”：网络搜索助手只负责公开信息，数据库助手只负责结构化业务数据，RAGFlow 助手只负责内部非结构化知识库。每个子智能体都有自己的 `description`、`system_prompt` 和工具列表，主智能体根据任务判断该调用谁。
 
-最后部分解决“能力怎么交付出去”：`server.py` 用 FastAPI 接住前端请求，用 `asyncio.create_task()` 把长耗时任务放到后台，用 WebSocket 推送实时进度，用 `/api/files` 和 `/api/download` 把最终产物交给用户。到这一步，项目才从“命令行能跑”变成“页面能用、过程可见、文件可下载”的应用。
+最后部分解决“能力怎么交付出去”：`server.ts` 用 Next.js / Hono / Fastify 接住前端请求，用 `async/await.create_task()` 把长耗时任务放到后台，用 WebSocket 推送实时进度，用 `/api/files` 和 `/api/download` 把最终产物交给用户。到这一步，项目才从“命令行能跑”变成“页面能用、过程可见、文件可下载”的应用。
 
 所以，学完这套项目后，真正应该带走的是一套工程思路：
 
@@ -1614,7 +1616,7 @@ GET /api/download?path=.../机器人信息.pdf
 
 第一，**主智能体不要什么都亲自做**。
 
-`main_agent.py` 里主智能体直接掌握的是文件交付类工具：读取上传文件、生成 Markdown、转换 PDF。网络搜索、数据库查询、知识库问答都交给子智能体。这种分工能让主智能体更像调度中心，而不是一个塞满所有工具的巨大函数。
+`main_agent.ts` 里主智能体直接掌握的是文件交付类工具：读取上传文件、生成 Markdown、转换 PDF。网络搜索、数据库查询、知识库问答都交给子智能体。这种分工能让主智能体更像调度中心，而不是一个塞满所有工具的巨大函数。
 
 第二，**子智能体的边界要靠 description 和 system_prompt 写清楚**。
 
@@ -1626,7 +1628,7 @@ DeepAgents 会根据子智能体的描述决定是否调用它。网络搜索助
 
 第四，**长任务不要阻塞 HTTP 请求**。
 
-深度研搜任务可能要搜索网页、查询数据库、调用知识库、生成文件和转 PDF。如果 `/api/task` 一直等最终结果，前端体验会很差，也不利于取消任务。所以本章用 `asyncio.create_task()` 启动后台任务，再通过 WebSocket 回传过程。
+深度研搜任务可能要搜索网页、查询数据库、调用知识库、生成文件和转 PDF。如果 `/api/task` 一直等最终结果，前端体验会很差，也不利于取消任务。所以本章用 `async/await.create_task()` 启动后台任务，再通过 WebSocket 回传过程。
 
 第五，**实时进度不是锦上添花，而是调试入口**。
 
@@ -1665,6 +1667,6 @@ DeepAgents 会根据子智能体的描述决定是否调用它。网络搜索助
 
 ### 6、最后再压缩成一句话
 
-「深度研搜」最终完成的是一条从研究任务到可交付文件的工程闭环：用户在前端提出问题或上传资料，FastAPI 启动后台任务，主智能体调度网络、数据库和 RAGFlow 三类专家助手获取信息，再调用文件工具生成 Markdown 或 PDF，执行过程通过 WebSocket 实时回到页面，最终产物从 `output` 目录展示和下载。
+「深度研搜」最终完成的是一条从研究任务到可交付文件的工程闭环：用户在前端提出问题或上传资料，Next.js / Hono / Fastify 启动后台任务，主智能体调度网络、数据库和 RAGFlow 三类专家助手获取信息，再调用文件工具生成 Markdown 或 PDF，执行过程通过 WebSocket 实时回到页面，最终产物从 `output` 目录展示和下载。
 
 如果你能把这条链路讲清楚、跑通、改得动，就已经不只是会调用模型，而是开始具备设计多智能体应用、拆分工程边界、处理前后端联调和交付完整项目的能力了。

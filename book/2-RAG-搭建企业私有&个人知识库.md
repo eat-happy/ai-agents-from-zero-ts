@@ -708,5 +708,5 @@ Dify 是一个开源的大语言模型（LLM）应用开发平台。和 Cherry S
 
 **建议下一步：**
 
-- 如果你想继续往平台化应用和工作流方向走，建议接着看 [3-基于Coze&Dify平台的智能体开发](3-基于Coze&Dify平台的智能体开发.md) 和 [4-Python调用Dify平台工作流](4-Python调用Dify平台工作流.md)。
+- 如果你想继续往平台化应用和工作流方向走，建议接着看 [3-基于Coze&Dify平台的智能体开发](3-基于Coze&Dify平台的智能体开发.md) 和 [4-TypeScript调用Dify平台工作流](4-TypeScript调用Dify平台工作流.md)。
 - 如果你想从代码角度真正把 RAG 跑起来，建议先看 [18-向量数据库与Embedding实战](18-向量数据库与Embedding实战.md)，再继续看 [19-RAG检索增强生成](19-RAG检索增强生成.md)。

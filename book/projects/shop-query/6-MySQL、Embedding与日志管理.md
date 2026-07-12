@@ -1,6 +1,8 @@
 # 6 - 电商问数：MySQL、Embedding 接入与日志管理
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：可运行 Demo 在 `apps/shop-query-agent`，技术栈为 **Next.js + LangChain.js + Zod + 内存数仓/元数据召回 + Route Handler**；原教程 MySQL / Qdrant / ES / FastAPI 在 Demo 中教学简化，概念仍按本章理解。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -181,7 +183,7 @@ BAAI/bge-large-zh-v1.5
 
 如果从工程视角看，`TEI` 在这里解决的是两个实际问题：不需要在业务代码里自己加载模型权重，后端只要通过 HTTP 地址访问服务，就能拿到 Embedding 结果。
 
-在当前项目中，`TEI` 还是以一个**独立服务**的方式运行的。更具体地说，它不是写在后端代码里的普通业务类，而是作为这套项目 Docker 基础服务环境中的一个容器服务启动起来，后端再通过配置里的 `host` 和 `port` 去调用它。
+在当前项目中，`TEI` 还是以一个**独立服务**的方式运行的。更具体地说，它不是写在后端代码里的普通 TypeScript 类，而是作为这套项目 Docker 基础服务环境中的一个容器服务启动起来，后端再通过配置里的 `host` 和 `port` 去调用它。
 
 ### 1.3 常见服务端组件说明
 
@@ -211,38 +213,27 @@ BAAI/bge-large-zh-v1.5
 `TEI` 的推理访问主要有 **3 种方式**：
 
 - **直接调用原生 HTTP 接口**：例如用 `curl` 直接请求 `/embed`
-- **使用 Hugging Face 的 Python 客户端**：也就是 `huggingface_hub` 里的 `InferenceClient`
+- **使用 Hugging Face 的 TypeScript / HTTP 客户端**：也就是 `OpenAI 兼容 Embedding HTTP/SDK` 里的 `InferenceClient`
 - **使用 OpenAI 兼容方式访问**：也就是把 `TEI` 暴露出来的接口当成 OpenAI 风格的 `/v1/embeddings` 来调用
 
-但在当前项目里，并没有直接采用这些原生调用方式，在 TypeScript 轨道里，我们选择更贴近 Node 技术栈的方案：使用 LangChain.js 的 `OpenAIEmbeddings`，把 TEI / 云端服务当作 OpenAI 兼容的 `/v1/embeddings` 来接入。
+但在当前项目里，并没有直接采用这些原生调用方式，而是选择了更贴近整套教程技术栈的方案：使用 LangChain 提供的 `OpenAIEmbeddings（OpenAI 兼容 / TEI）`。
 
 这样做有两个明显好处：和前面已经学过的 `LangChain / LangGraph` 体系保持一致；后续在服务层、Agent 节点里调用时，接口更统一。也就是说，当前项目不是不能直接调用 `TEI`，而是有意选择了一个更贴近整套教程技术栈的接入层。
 
 ### 1.6 封装 Embedding 客户端
 
-项目对应文件路径（TS Demo）：`apps/shop-query-agent/lib/metadata.ts` 与 `examples/08-embedding-rag/index.ts`
-
-TypeScript 轨道推荐写法（OpenAI 兼容 Embedding）：
+TypeScript 轨道推荐封装：
 
 ```typescript
-// Real TypeScript from repo: apps/shop-query-agent pattern (OpenAIEmbeddings + TEI-compatible baseURL)
-// Also see: examples/08-embedding-rag/index.ts
+// Real TypeScript from repo: apps/shop-query-agent pattern + examples/08-embedding-rag/index.ts
 import { OpenAIEmbeddings } from "@langchain/openai";
 
-export type EmbeddingConfig = {
-  host: string;
-  port: number;
-  model?: string;
-};
+export type EmbeddingConfig = { host: string; port: number; model?: string };
 
 export class EmbeddingClientManager {
   private client: OpenAIEmbeddings | null = null;
   constructor(private readonly config: EmbeddingConfig) {}
-
-  private getUrl() {
-    return `http://${this.config.host}:${this.config.port}/v1`;
-  }
-
+  private getUrl() { return `http://${this.config.host}:${this.config.port}/v1`; }
   init() {
     this.client = new OpenAIEmbeddings({
       apiKey: process.env.OPENAI_API_KEY || "tei-local",
@@ -250,96 +241,16 @@ export class EmbeddingClientManager {
       configuration: { baseURL: this.getUrl() },
     });
   }
-
   getClient() {
     if (!this.client) throw new Error("call init() first");
     return this.client;
   }
 }
-
-// 验证
-// const mgr = new EmbeddingClientManager({ host: "127.0.0.1", port: 8080 });
-// mgr.init();
-// console.log((await mgr.getClient().embedQuery("销售额")).slice(0, 3));
 ```
 
-对应可运行完整 RAG 示例：
-
-```typescript
-// Real TypeScript from repo: examples/08-embedding-rag/index.ts
-/**
- * Maps to: 案例与源码-2-LangChain框架/09-embedding + 10-rag
- * Course chapters 18-19
- */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Document } from "@langchain/core/documents";
-import { StringOutputParser } from "@langchain/core/output_parsers";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
-import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { createChatModel, createEmbeddings } from "../../src/shared/llm.js";
-import { printRunHeader } from "../../src/shared/env.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function formatDocs(docs: Document[]) {
-  return docs.map((d, i) => `[#${i + 1}] ${d.pageContent}`).join("\n\n");
-}
-
-async function main() {
-  printRunHeader("08-embedding-rag | local docs RAG");
-
-  const raw = readFileSync(join(__dirname, "../../data/company-faq.md"), "utf8");
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 200,
-    chunkOverlap: 40,
-  });
-  const docs = await splitter.createDocuments([raw]);
-
-  const vectorStore = await MemoryVectorStore.fromDocuments(
-    docs,
-    createEmbeddings(),
-  );
-  const retriever = vectorStore.asRetriever({ k: 3 });
-
-  const prompt = ChatPromptTemplate.fromMessages([
-    [
-      "system",
-      "你是企业知识库助手。仅依据提供的上下文回答；不知道就说不知道，并建议联系 HR。\n\n上下文:\n{context}",
-    ],
-    ["human", "{question}"],
-  ]);
-
-  const ragChain = RunnableSequence.from([
-    {
-      context: async (input: { question: string }) =>
-        formatDocs(await retriever.invoke(input.question)),
-      question: new RunnablePassthrough<{ question: string }>().pipe(
-        (input) => input.question,
-      ),
-    },
-    prompt,
-    createChatModel(0),
-    new StringOutputParser(),
-  ]);
-
-  const question = "差旅报销有什么规则？市内交通上限是多少？";
-  console.log("[question]", question);
-  const answer = await ragChain.invoke({ question });
-  console.log("\n[answer]\n", answer);
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});```
 
 
-
-项目对应文件路径：`shopkeeper-agent/app/clients/embedding_client_manager.py`
+项目对应文件路径：`apps/shop-query-agent/app/clients/embedding_client_manager.ts`
 
 代码如下：
 
@@ -662,8 +573,8 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 这里有两个核心属性：
 
-- `this.config`：保存配置对象，里面有 `host`、`port`、`model`
-- `this.client`：保存真正可调用的 Embedding 客户端实例
+- `self.config`：保存配置对象，里面有 `host`、`port`、`model`
+- `self.client`：保存真正可调用的 Embedding 客户端实例
 
 和前面几类客户端管理器一样，这里也没有在构造函数里立刻完成初始化，而是先把对象创建出来，后面在 `init()` 里再真正生成客户端。
 
@@ -1013,21 +924,21 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 - `meta_mysql_client_manager`
 - `dw_mysql_client_manager`
 
-### 2.2 SQLAlchemy 简介
+### 2.2 Prisma / Drizzle / TypeORM 简介
 
 官方文档：https://www.sqlalchemy.org/
 
-在进入 MySQL 客户端实现之前，先单独理解一下 `SQLAlchemy` 会更顺。因为当前项目里的 MySQL 接入并不是直接手写底层连接，而是建立在 `SQLAlchemy` 之上。
+在进入 MySQL 客户端实现之前，先单独理解一下 `Prisma / Drizzle / TypeORM` 会更顺。因为当前项目里的 MySQL 接入并不是直接手写底层连接，而是建立在 `Prisma / Drizzle / TypeORM` 之上。
 
 抓住三个关键词：
 
-- **ORM**：数据库表和 Python 类之间的翻译层。你在代码里操作类和对象，ORM 会把这些操作翻译成数据库能执行的 SQL。
+- **ORM**：数据库表和 TypeScript 类之间的翻译层。你在代码里操作类和对象，ORM 会把这些操作翻译成数据库能执行的 SQL。
 - **Engine**：程序连接数据库的总入口，负责和数据库建立连接，并维护一组可复用的连接。
 - **Session**：一次具体数据库操作的工作窗口，这一轮查询、写入和提交通常都通过它完成。
 
 如果只记一句话，可以概括成：`Engine` 更像“连接基础设施”，`Session` 更像“这次数据库操作的工作上下文”
 
-### 2.3 SQLAlchemy 快速入门案例
+### 2.3 Prisma / Drizzle / TypeORM 快速入门案例
 
 官方文档：https://docs.sqlalchemy.org/en/20/orm/quickstart.html
 
@@ -1429,7 +1340,7 @@ main().catch((err) => {
 });
 ```
 
-这行代码的意思是：**根据前面声明好的模型，自动生成对应的数据表结构**。不过这里也要顺手提醒一下：在我们的项目里，并没有走这条“由 ORM 自动建表”的路线。因为当前项目的数据库和表结构在前面的环境准备阶段就已经初始化好了，所以这里更多是帮助你理解 SQLAlchemy 的能力边界，而不是项目运行时真正依赖的建表方式。
+这行代码的意思是：**根据前面声明好的模型，自动生成对应的数据表结构**。不过这里也要顺手提醒一下：在我们的项目里，并没有走这条“由 ORM 自动建表”的路线。因为当前项目的数据库和表结构在前面的环境准备阶段就已经初始化好了，所以这里更多是帮助你理解 Prisma / Drizzle / TypeORM 的能力边界，而不是项目运行时真正依赖的建表方式。
 
 然后是写数据，这样使用 `Session`：
 
@@ -1659,7 +1570,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 这一段重点是在说明两件事：
 
 - 往数据库写数据时，真正和数据库交互的是 `Session`
-- ORM 的写法看起来像在操作 Python 对象，但底层最终还是会生成 SQL 并发给数据库
+- ORM 的写法看起来像在操作 TypeScript 对象，但底层最终还是会生成 SQL 并发给数据库
 
 这里也正好能对应到 `add_all()`、`commit()` 这两个关键动作。
 
@@ -1744,17 +1655,17 @@ main().catch((err) => {
 - 再通过 `Session` 执行这条语句
 - 最终把查出来的 ORM 对象遍历出来
 
-这里你也能看到，官方 quickstart 更偏向展示 ORM 风格的查询写法。这里的 ORM 风格，可以理解成：**不自己手写 SQL 字符串，而是用 Python 里的类、属性和方法去表达“我要查什么”**。但真正落到当前项目时，并不会强制把所有查询都写成这种形式。因为对于复杂 SQL，尤其是数据仓库查询场景，直接写原生 SQL 往往更直观，也更方便控制细节。
+这里你也能看到，官方 quickstart 更偏向展示 ORM 风格的查询写法。这里的 ORM 风格，可以理解成：**不自己手写 SQL 字符串，而是用 TypeScript 里的类、属性和方法去表达“我要查什么”**。但真正落到当前项目时，并不会强制把所有查询都写成这种形式。因为对于复杂 SQL，尤其是数据仓库查询场景，直接写原生 SQL 往往更直观，也更方便控制细节。
 
-所以，这份 quickstart 在当前教程里的价值，可以概括成一句话：它主要帮助我们先理解 SQLAlchemy 的基本组成和使用顺序，后面项目代码再根据异步 MySQL 的真实需求做取舍和落地
+所以，这份 quickstart 在当前教程里的价值，可以概括成一句话：它主要帮助我们先理解 Prisma / Drizzle / TypeORM 的基本组成和使用顺序，后面项目代码再根据异步 MySQL 的真实需求做取舍和落地
 
 ### 2.4 封装 MySQL 客户端
 
-项目对应文件路径：`shopkeeper-agent/app/clients/mysql_client_manager.py`
+项目对应文件路径：`apps/shop-query-agent/app/clients/mysql_client_manager.ts`
 
-这一部分的中心代码就是当前项目里的 MySQL 客户端封装。前面的 `SQLAlchemy` 基础、quickstart、Engine 与 Session，最终都是为了帮助我们把这段代码看懂。
+这一部分的中心代码就是当前项目里的 MySQL 客户端封装。前面的 `Prisma / Drizzle / TypeORM` 基础、quickstart、Engine 与 Session，最终都是为了帮助我们把这段代码看懂。
 
-这里还要先补一个课程里容易被忽略、但代码里已经真实用到的点：`asyncmy` 是当前项目使用的 MySQL 异步驱动。更具体地说，`SQLAlchemy` 负责提供数据库抽象层，而真正和 MySQL 异步通信的底层驱动，是 `asyncmy`。
+这里还要先补一个课程里容易被忽略、但代码里已经真实用到的点：`asyncmy` 是当前项目使用的 MySQL 异步驱动。更具体地说，`Prisma / Drizzle / TypeORM` 负责提供数据库抽象层，而真正和 MySQL 异步通信的底层驱动，是 `asyncmy`。
 
 #### 2.4.1 MySQL 客户端代码实现
 
@@ -2670,7 +2581,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 ### 2.5 为什么不用 ORM 查询语法
 
-前面已经对照过 `SQLAlchemy` 官方 quickstart，也看了 ORM 风格的查询写法。但落实到当前项目时，并没有把所有查询都改写成 ORM 查询表达式。
+前面已经对照过 `Prisma / Drizzle / TypeORM` 官方 quickstart，也看了 ORM 风格的查询写法。但落实到当前项目时，并没有把所有查询都改写成 ORM 查询表达式。
 
 原因很现实：
 
@@ -2680,7 +2591,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 所以这里的策略其实很清楚：
 
-- **连接管理、Session 管理** 用 `SQLAlchemy`
+- **连接管理、Session 管理** 用 `Prisma / Drizzle / TypeORM`
 - **复杂查询语句** 仍然可以直接写原生 SQL
 
 这也是为什么测试代码里直接用了：
@@ -3019,7 +2930,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 ### 3.3 配置文件中的日志描述
 
-项目对应文件路径：`shopkeeper-agent/conf/app_config.yaml`
+项目对应文件路径：`apps/shop-query-agent/conf/app_config.yaml`
 
 对应配置如下：
 
@@ -3056,7 +2967,7 @@ logging:
 
 ### 3.4 封装日志配置
 
-项目对应文件路径：`shopkeeper-agent/app/core/log.py`
+项目对应文件路径：`apps/shop-query-agent/app/core/log.ts`
 
 代码如下：
 
@@ -3702,7 +3613,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 #### 3.4.4 request_id 注入机制
 
-项目对应文件路径：`shopkeeper-agent/app/core/context.py`
+项目对应文件路径：`apps/shop-query-agent/app/core/context.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/08-embedding-rag/index.ts
@@ -4320,7 +4231,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 **本章小结：**
 
 - **Embedding** 这一部分，核心是把**模型、推理服务、客户端封装、业务调用**这四层关系串起来。
-- **MySQL** 这一部分，核心是把 **SQLAlchemy、Engine、Session、Session 工厂**之间的分工理顺。
+- **MySQL** 这一部分，核心是把 **Prisma / Drizzle / TypeORM、Engine、Session、Session 工厂**之间的分工理顺。
 - **日志** 这一部分，核心是看清**为什么正式项目需要统一日志配置，以及 `request_id` 为什么重要**。
 - 到这里为止，`Qdrant / Elasticsearch / Embedding / MySQL / 日志` 这几块基础服务已经基本接齐，后面就可以继续进入元数据知识库的构建链路。
 

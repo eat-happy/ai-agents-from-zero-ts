@@ -17,8 +17,8 @@
 - 02 企业低代码平台开发与项目实战
   - [第 3 章 基于 Coze&Dify 的智能体开发](3-基于Coze&Dify平台的智能体开发.md)
   - 智能体的调用与部署
-    - [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-Python调用Dify平台工作流.md)
-    - [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-Python调用Coze平台工作流.md)
+    - [第 4 章 TypeScript / Node.js 调用 Dify 平台工作流](4-TypeScript调用Dify平台工作流.md)
+    - [第 5 章 TypeScript / Node.js 调用 Coze 平台工作流](5-TypeScript调用Coze平台工作流.md)
     - [第 6 章 Coze 与 Dify 的 Windows 平台部署](6-Coze与Dify的Windows平台部署.md)
     - [第 7 章 企业级大模型部署](7-企业级大模型部署.md)
     - [第 8 章 Docker 快速入门与 Dify 部署排障](8-Docker快速入门与Dify部署排障.md)

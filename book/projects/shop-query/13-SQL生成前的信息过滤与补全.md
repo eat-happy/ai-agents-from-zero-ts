@@ -1,6 +1,8 @@
 # 13 - 电商问数：SQL 生成前的信息过滤与补全
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：可运行 Demo 在 `apps/shop-query-agent`，技术栈为 **Next.js + LangChain.js + Zod + 内存数仓/元数据召回 + Route Handler**；原教程 MySQL / Qdrant / ES / FastAPI 在 Demo 中教学简化，概念仍按本章理解。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -185,7 +187,7 @@ flowchart LR
 
 ## 4、为什么要把上下文转成 YAML
 
-`table_infos` 和 `metric_infos` 在 Python 程序里是列表、字典等对象。它们不能直接“作为对象”交给大模型，只能先转成文本。
+`table_infos` 和 `metric_infos` 在 TypeScript 程序里是列表、字典等对象。它们不能直接“作为对象”交给大模型，只能先转成文本。
 
 常见做法有两种：
 
@@ -235,7 +237,7 @@ main().catch((err) => {
 - 层级结构清楚，表、字段、字段属性更容易看；
 - `allow_unicode=True` 可以让中文正常显示，而不是转成 Unicode 编码；
 - `sort_keys=False` 可以保留原有字段顺序，不会按字母顺序打乱；
-- 放进提示词后，比 Python 对象的默认打印形式更适合模型阅读。
+- 放进提示词后，比 TypeScript 对象的默认打印形式更适合模型阅读。
 
 比如 `table_infos` 转成 YAML 后，会更像这样：
 
@@ -306,7 +308,7 @@ main().catch((err) => {
 
 ### 5.1 filter_table 提示词关注什么
 
-项目对应提示词路径：`shopkeeper-agent/prompts/filter_table_info.prompt`
+项目对应提示词路径：`apps/shop-query-agent/prompts/filter_table_info.prompt`
 
 这份提示词的定位是：让模型扮演查询规划专家，在候选表和字段中选出回答当前问题必须使用的部分。
 
@@ -332,7 +334,7 @@ main().catch((err) => {
 
 ### 5.2 filter_table 核心代码
 
-项目对应文件路径：`app/agent/nodes/filter_table.py`
+项目对应文件路径：`app/agent/nodes/filter_table.ts`
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
@@ -445,7 +447,7 @@ main().catch((err) => {
 });
 ```
 
-这里使用 `JsonOutputParser`，是因为提示词要求模型只输出 JSON 对象。解析后，`result` 就是 Python 字典。
+这里使用 `JsonOutputParser`，是因为提示词要求模型只输出 JSON 对象。解析后，`result` 就是 TypeScript 对象。
 
 第三步，把 `table_infos` 序列化成 YAML 后传给模型：
 
@@ -636,7 +638,7 @@ AOV
 
 ### 6.1 filter_metric 提示词关注什么
 
-项目对应提示词路径：`shopkeeper-agent/prompts/filter_metric_info.prompt`
+项目对应提示词路径：`apps/shop-query-agent/prompts/filter_metric_info.prompt`
 
 这份提示词的核心约束是：
 
@@ -659,7 +661,7 @@ AOV
 
 ### 6.2 filter_metric 核心代码
 
-项目对应文件路径：`app/agent/nodes/filter_metric.py`
+项目对应文件路径：`app/agent/nodes/filter_metric.ts`
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
@@ -824,9 +826,9 @@ main().catch((e) => {
 
 `filter_table` 和 `filter_metric` 都依赖 `merge_retrieved_info` 的结果，但它们彼此之间没有依赖关系。
 
-所以在 `graph.py` 中，它们是从同一个节点分出去的：
+所以在 `graph.ts` 中，它们是从同一个节点分出去的：
 
-项目对应文件路径：`shopkeeper-agent/app/agent/graph.py`
+项目对应文件路径：`apps/shop-query-agent/app/agent/graph.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/03-prompt-template/index.ts
@@ -909,7 +911,7 @@ db_info    # 数据库方言、数据库版本
 
 ### 8.1 补齐 State 和 Context
 
-项目对应文件路径：`shopkeeper-agent/app/agent/state.py`
+项目对应文件路径：`apps/shop-query-agent/app/agent/state.ts`
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts
@@ -942,7 +944,7 @@ main().catch((e) => {
 
 `add_extra_context` 还需要访问数仓数据库，查询数据库版本和方言，所以 `DataAgentContext` 中要有 `dw_mysql_repository`。
 
-项目对应文件路径：`shopkeeper-agent/app/agent/context.py`
+项目对应文件路径：`apps/shop-query-agent/app/agent/context.ts`
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/04-prompt/chat_prompt_template/ChatPromptTemplate_Constructor.ts
@@ -998,7 +1000,7 @@ main().catch((e) => {
 
 ### 8.2 add_extra_context 核心代码
 
-项目对应文件路径：`shopkeeper-agent/app/agent/nodes/add_extra_context.py`
+项目对应文件路径：`apps/shop-query-agent/app/agent/nodes/add_extra_context.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/03-prompt-template/index.ts
@@ -1248,7 +1250,7 @@ main().catch((e) => {
 
 ## 9、DWMySQLRepository 如何获取数据库信息
 
-项目对应文件路径：`shopkeeper-agent/app/repositories/mysql/dw/dw_mysql_repository.py`
+项目对应文件路径：`apps/shop-query-agent/app/repositories/mysql/dw/dw_mysql_repository.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/03-prompt-template/index.ts
@@ -1369,7 +1371,7 @@ main().catch((e) => {
 });
 ```
 
-当前项目使用 SQLAlchemy 管理数据库连接，`dialect.name` 可以拿到当前连接对应的数据库类型，比如：
+当前项目使用 Prisma / Drizzle / TypeORM 管理数据库连接，`dialect.name` 可以拿到当前连接对应的数据库类型，比如：
 
 ```text
 mysql
@@ -1380,7 +1382,7 @@ postgresql
 
 ---
 
-## 10、在 graph.py 中传入 DW Repository
+## 10、在 graph.ts 中传入 DW Repository
 
 因为 `add_extra_context` 会读取：
 
@@ -1420,7 +1422,7 @@ main().catch((err) => {
 
 所以本地测试工作流时，需要初始化 DW 数据库连接，并把 `DWMySQLRepository` 放进 `context`。
 
-项目对应文件路径：`shopkeeper-agent/app/agent/graph.py`
+项目对应文件路径：`apps/shop-query-agent/app/agent/graph.ts`
 
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/04-prompt/prompt_templates/PromptTemplate_FromTemplate.ts

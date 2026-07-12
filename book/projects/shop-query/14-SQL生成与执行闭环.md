@@ -1,6 +1,8 @@
 # 14 - 电商问数：SQL 生成与执行闭环
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：可运行 Demo 在 `apps/shop-query-agent`，技术栈为 **Next.js + LangChain.js + Zod + 内存数仓/元数据召回 + Route Handler**；原教程 MySQL / Qdrant / ES / FastAPI 在 Demo 中教学简化，概念仍按本章理解。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -182,7 +184,7 @@ db_info:
 
 ### 3.1 提示词关注什么
 
-项目对应提示词路径：`shopkeeper-agent/prompts/generate_sql.prompt`
+项目对应提示词路径：`apps/shop-query-agent/prompts/generate_sql.prompt`
 
 这份提示词的核心输入有五个：
 
@@ -223,7 +225,7 @@ select ...
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -268,8 +270,8 @@ main().catch((err) => {
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -343,7 +345,7 @@ Unknown column 'd.region_name1' in 'where clause'
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -386,8 +388,8 @@ main().catch((err) => {
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -431,7 +433,7 @@ main().catch((e) => {
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -500,8 +502,8 @@ flowchart TD
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -601,7 +603,7 @@ error  # 数据库返回的错误信息
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -653,8 +655,8 @@ main().catch((err) => {
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -700,7 +702,7 @@ main().catch((e) => {
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -745,7 +747,7 @@ main().catch((err) => {
 这里统一使用当前项目里的文件名和函数名：
 
 ```text
-run_sql.py
+run_sql.ts
 run_sql(...)
 ```
 
@@ -758,8 +760,8 @@ run_sql(...)
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -799,7 +801,7 @@ main().catch((e) => {
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -842,8 +844,8 @@ main().catch((err) => {
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -899,7 +901,7 @@ main().catch((e) => {
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -959,8 +961,8 @@ generate_sql 写入 sql
 ```typescript
 // Real TypeScript from repo: book/cases-langchain/05_parser/StructuredOutput_Zod.ts
 /**
- * 【精校可运行】结构化输出（第 14 章，Zod 替代 Pydantic）
- * 原 Python: StructuredOutput_Pydantic.py 教学意图
+ * 【精校可运行】结构化输出（第 14 章，Zod 替代 Zod）
+ * 原 TypeScript: StructuredOutput_Zod.ts 教学意图
  *
  *   npx tsx book/cases-langchain/05_parser/StructuredOutput_Zod.ts
  */
@@ -998,7 +1000,7 @@ main().catch((e) => {
 // Real TypeScript from repo: examples/04-output-parser/index.ts
 /**
  * Maps to course chapter 14: 输出解析器
- * Zod structured output instead of Python Pydantic parsers.
+ * Zod structured output instead of TypeScript Zod parsers.
  */
 import { z } from "zod";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -1045,7 +1047,7 @@ main().catch((err) => {
 在项目根目录下运行：
 
 ```bash
-uv run npx tsx app.agent.graph
+npx tsx npx tsx app.agent.graph
 ```
 
 运行测试时，不要只盯最终结果。更建议按节点顺序观察：
@@ -1085,7 +1087,7 @@ SQL执行结果：[{'SUM(fact_order.order_amount)': 41099.5}]
 下面是一次实际运行日志。
 
 ```text
-(shopkeeper-agent-backend) tools@ToolsMacBook-Pro shopkeeper-agent % uv run npx tsx app.agent.graph
+(shopkeeper-agent-backend) tools@ToolsMacBook-Pro shopkeeper-agent % npx tsx npx tsx app.agent.graph
 
 2026-04-27 17:29:31.699 | INFO     | request_id - 1 | app.agent.nodes.extract_keywords:extract_keywords:46 - 抽取关键词: ['销售总额', '华北地区', '统计', '统计华北地区的销售总额']
 抽取关键词

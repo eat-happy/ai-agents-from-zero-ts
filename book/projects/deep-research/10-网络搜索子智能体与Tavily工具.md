@@ -1,6 +1,8 @@
 # 10 - 深度研搜：网络搜索子智能体与 Tavily 工具
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -331,7 +333,7 @@ Tavily 是面向大模型使用的搜索 API，它返回的结果通常已经整
 
 ## 4、实现并验证 internet_search 工具
 
-项目对应文件路径：`deepsearch-agents/app/tools/tavily_tool.py`
+项目对应文件路径：`deepsearch-agents/app/tools/tavily_tool.ts`
 
 完整工具可以先按五段理解：
 
@@ -564,7 +566,7 @@ main().catch((err) => {
 
 ### 4.3 实际运行输出怎么读
 
-在项目根目录运行：`uv run npx tsx app.tools.tavily_tool`
+在项目根目录运行：`npx tsx npx tsx app.tools.tavily_tool`
 
 一次真实输出会先看到工具监控事件：
 
@@ -721,7 +723,7 @@ main().catch((err) => {
 
 ### 5.1 为什么工具里要调用 monitor
 
-第 9 章已经写过 `monitor.py`。它的作用是把工具调用、子智能体调用和任务结果推给前端。
+第 9 章已经写过 `monitor.ts`。它的作用是把工具调用、子智能体调用和任务结果推给前端。
 
 这里把埋点写在工具内部：
 
@@ -1233,7 +1235,7 @@ Agent 调用 internet_search
 
 工具写完以后，就可以把它和提示词配置组装成子智能体。
 
-项目对应文件路径：`deepsearch-agents/app/agent/subagents/network_search_agent.py`
+项目对应文件路径：`deepsearch-agents/app/agent/subagents/network_search_agent.ts`
 
 这个文件只做一件事：把 YAML 里的网络助手配置和 `internet_search` 工具组装成 DeepAgents 认识的字典。
 
@@ -1362,14 +1364,14 @@ main().catch((err) => {
 });
 ```
 
-这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.py` 并没有把提示词硬编码在 Python 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.py` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 Python 代码。
+这里采用的是 DeepAgents 最常见的字典式子智能体写法。注意，`network_search_agent.ts` 并没有把提示词硬编码在 TypeScript 文件里，而是从 `app.agent.prompts` 中读取 `sub_agents_content`。在 `app/agent/prompts.ts` 里，`sub_agents_content` 来自 `prompt_yaml_content["sub_agents"]`，也就是前面配置的 `prompts.yml`。这样后续只想调整助手描述或检索策略时，优先改 YAML 即可，不需要反复改 TypeScript 代码。
 
 | 字段            | 来源                       | 作用                         |
 | --------------- | -------------------------- | ---------------------------- |
 | `name`          | `prompts.yml`              | 子智能体名称                 |
 | `description`   | `prompts.yml`              | 给主智能体判断何时调用       |
 | `system_prompt` | `prompts.yml`              | 给网络搜索助手自己的行为约束 |
-| `tools`         | `app/tools/tavily_tool.py` | 子智能体可以调用的真实工具   |
+| `tools`         | `app/tools/tavily_tool.ts` | 子智能体可以调用的真实工具   |
 
 ---
 

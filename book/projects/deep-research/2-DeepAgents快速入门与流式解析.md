@@ -1,6 +1,8 @@
 # 2 - 深度研搜：DeepAgents 快速入门与流式解析
 
 <!-- TS-TRACK-BANNER -->
+> **TS 生态对照（本仓库）**：深度研搜原项目偏 Python DeepAgents；TypeScript 对照请看 `examples/12-langgraph-multi-agent`、`examples/11-langgraph-tool-agent`、`examples/14-mcp`。
+
 > **TypeScript 轨道说明**：中文讲解保留原教程；**代码块使用仓库内真实 TypeScript**（`examples/` / 精校案例 / `apps/shop-query-agent`），不再使用机翻 Python。
 > 精校清单：[POLISHED-CASES](POLISHED-CASES.md)
 
@@ -232,23 +234,23 @@ npx tsx examples/12-langgraph-multi-agent/index.ts
 
 ### 1.1 安装依赖
 
-在运行代码之前，先准备 Python 环境和依赖。当前教学代码仓库 `deepsearch-agents`，已经使用 `uv` 管理 Python 环境和依赖。
+在运行代码之前，先准备 TypeScript 环境和依赖。当前教学代码仓库 `deepsearch-agents`，已经使用 `uv` 管理 TypeScript 环境和依赖。
 
 如果你还不了解 `uv`，可以先参考「[3 - 电商问数：开发环境与基础服务准备](../实战项目-电商问数/3-开发环境与基础服务准备.md)」中关于 `uv` 的入门说明。本章不再展开讲 `uv` 的基础概念，只需要知道：在这个项目里，依赖已经写在 `pyproject.toml` 中，第一次运行时直接同步即可。
 
-当前 `deepsearch-agents/pyproject.toml` 中指定的 Python 版本是：
+当前 `deepsearch-agents/pyproject.toml` 中指定的 TypeScript 版本是：
 
 ```toml
 requires-python = ">=3.12,<3.13"
 ```
 
-也就是说，本项目建议使用 `Python 3.12`。如果你已经安装好 `uv`，进入 `deepsearch-agents` 项目根目录后，执行：
+也就是说，本项目建议使用 `TypeScript 3.12`。如果你已经安装好 `uv`，进入 `deepsearch-agents` 项目根目录后，执行：
 
 ```bash
 uv sync
 ```
 
-`uv sync` 会根据项目中的 `pyproject.toml` 和 `uv.lock` 自动创建 `.venv`，并安装锁定好的依赖版本。当前项目核心依赖如下：
+`uv sync` 会根据项目中的 `pyproject.toml` 和 `uv.lock` 自动创建 `.Node 环境`，并安装锁定好的依赖版本。当前项目核心依赖如下：
 
 | 依赖               | 当前版本 | 作用                                   |
 | ------------------ | -------- | -------------------------------------- |
@@ -263,16 +265,16 @@ uv sync
 
 ### 1.2 代码位置与执行步骤
 
-项目对应文件路径：`deepsearch-agents/examples/1-deep-agent-quickstart-search.py`、`deepsearch-agents/examples/2-deep-agent-streaming-chunks.py`
+项目对应文件路径：`deepsearch-agents/examples/1-deep-agent-quickstart-search.ts`、`deepsearch-agents/examples/2-deep-agent-streaming-chunks.ts`
 
-其中，`1-deep-agent-quickstart-search.py` 用来演示非流式调用，`2-deep-agent-streaming-chunks.py` 用来演示流式解析。
+其中，`1-deep-agent-quickstart-search.ts` 用来演示非流式调用，`2-deep-agent-streaming-chunks.ts` 用来演示流式解析。
 
 代码执行顺序如下：
 
 1. 安装本章依赖。
 2. 配置 `.env`。
 3. 创建 Tavily 搜索客户端。
-4. 使用 `@tool` 把普通 Python 函数封装成 Agent 可调用工具。
+4. 使用 `@tool` 把普通 TypeScript 函数封装成 Agent 可调用工具。
 5. 初始化大模型。
 6. 使用 `create_deep_agent()` 创建 DeepAgent。
 7. 使用 `invoke()` 非流式执行。
@@ -478,7 +480,7 @@ main().catch((err) => {
 });
 ```
 
-这里最关键的是 `@tool` 装饰器。它会把一个普通 Python 函数包装成 LangChain 工具，让 Agent 能够在推理过程中调用它。
+这里最关键的是 `@tool` 装饰器。它会把一个普通 TypeScript 函数包装成 LangChain 工具，让 Agent 能够在推理过程中调用它。
 
 工具的函数签名和注释也很重要。模型会根据工具名称、参数类型和描述判断什么时候该调用这个工具、应该传什么参数。如果工具描述太含糊，模型就更容易误用。
 
@@ -1335,7 +1337,7 @@ AIMessage(
 
 这里要注意：这条 `AIMessage` 还不是最终回答。它的 `content` 为空，但 `tool_calls` 有值，意思是模型在告诉 Agent：“下一步请调用 `internet_search` 工具，并传入这些参数。”
 
-第三步，Agent 根据 `tool_calls` 真正去执行工具，也就是调用我们前面定义的 Python 函数：
+第三步，Agent 根据 `tool_calls` 真正去执行工具，也就是调用我们前面定义的 TypeScript 函数：
 
 ```typescript
 // Real TypeScript from repo: examples/09-agent/index.ts
@@ -1624,7 +1626,7 @@ main().catch((err) => {
 
 它是 Agent 工具调用的核心。
 
-模型本身并不会主动扫描你的 Python 代码，也不会自己知道项目里有哪些函数。真正发生的是：当我们通过 `create_deep_agent()` 创建智能体时，已经把工具列表传给了 Agent。
+模型本身并不会主动扫描你的 TypeScript 代码，也不会自己知道项目里有哪些函数。真正发生的是：当我们通过 `create_deep_agent()` 创建智能体时，已经把工具列表传给了 Agent。
 
 ```typescript
 // Real TypeScript from repo: examples/12-langgraph-multi-agent/index.ts
@@ -1857,7 +1859,7 @@ main().catch((err) => {
 
 ### 3.2 用 stream 获取执行过程
 
-项目对应文件路径：`deepsearch-agents/examples/2-deep-agent-streaming-chunks.py`
+项目对应文件路径：`deepsearch-agents/examples/2-deep-agent-streaming-chunks.ts`
 
 把 `invoke()` 换成 `stream()` 后，返回值就不再是完整结果，而是一个可以不断迭代的流：
 
@@ -2262,7 +2264,7 @@ main().catch((err) => {
 
 ### 3.4 chunk 四种状态的对象视图示例
 
-只看上面的表格还比较抽象。下面参考项目文档中的写法，把 `stream()` 迭代过程中可能出现的几类 `chunk` 展开成 Python 对象视图。
+只看上面的表格还比较抽象。下面参考项目文档中的写法，把 `stream()` 迭代过程中可能出现的几类 `chunk` 展开成 TypeScript 对象视图。
 
 注意，这里不是要求你手写这些对象，而是帮助你在 `print(chunk)` 时能快速识别当前 Agent 运行到哪一步。
 
@@ -2699,7 +2701,7 @@ main().catch((err) => {
 });
 ```
 
-`task` 本质上也是一次工具调用，只是它调用的不是普通 Python 工具，而是 DeepAgents 的子智能体调度入口。解析时只要看到 `tool_call["name"] == "task"`，就可以把它识别成“正在分派给子智能体”。
+`task` 本质上也是一次工具调用，只是它调用的不是普通 TypeScript 工具，而是 DeepAgents 的子智能体调度入口。解析时只要看到 `tool_call["name"] == "task"`，就可以把它识别成“正在分派给子智能体”。
 
 **场景 D：模型生成最终回复。**
 
@@ -3013,7 +3015,7 @@ main().catch((err) => {
 
 ### 3.5 解析 chunk 的完整代码
 
-项目对应文件路径：`deepsearch-agents/examples/2-deep-agent-streaming-chunks.py`
+项目对应文件路径：`deepsearch-agents/examples/2-deep-agent-streaming-chunks.ts`
 
 ```typescript
 // Real TypeScript from repo: examples/11-langgraph-tool-agent/index.ts
@@ -3615,7 +3617,7 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 | 输出片段                                | 对应的执行阶段                                         |
 | --------------------------------------- | ------------------------------------------------------ |
 | `【大模型】决定调用工具...`             | `model` 节点输出，模型决定下一步调用 `internet_search` |
-| `开始调用网络搜索工具...`               | Python 工具函数真正开始执行                            |
+| `开始调用网络搜索工具...`               | TypeScript 工具函数真正开始执行                            |
 | `【agent】调用了internet_search工具...` | `tools` 节点输出，工具结果已经返回                     |
 | `【大模型】最终执行的结果...`           | `model` 节点再次输出，模型基于工具结果生成最终回答     |
 
@@ -3623,7 +3625,7 @@ LangChainPendingDeprecationWarning: The default value of `allowed_objects` will 
 
 ### 3.6 对接前端时怎么展示
 
-虽然本章还没有写 FastAPI 接口，但可以提前建立后端事件和前端展示之间的对应关系。
+虽然本章还没有写 Next.js / Hono / Fastify 接口，但可以提前建立后端事件和前端展示之间的对应关系。
 
 | 后端解析出的事件                   | 前端可以展示成什么       |
 | ---------------------------------- | ------------------------ |
