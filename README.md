@@ -23,7 +23,6 @@ ai-agents-from-zero-ts/
 │   ├── 01-helloworld ... 14-mcp
 ├── apps/shop-query-agent/        # 电商问数 Next.js 可演示精简版
 ├── src/shared/                   # 公共模型/工具
-└── scripts/convert-book-to-ts.mjs
 ```
 
 
