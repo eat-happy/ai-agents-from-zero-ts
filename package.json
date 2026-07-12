@@ -1,0 +1,46 @@
+{
+  "name": "ai-agents-from-zero-ts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript rewrite of didilili/ai-agents-from-zero core LangChain/LangGraph cases for JS learners",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "ex:01": "tsx examples/01-helloworld/index.ts",
+    "ex:02": "tsx examples/02-models-io/index.ts",
+    "ex:03": "tsx examples/03-prompt-template/index.ts",
+    "ex:04": "tsx examples/04-output-parser/index.ts",
+    "ex:05": "tsx examples/05-lcel-chain/index.ts",
+    "ex:06": "tsx examples/06-memory/index.ts",
+    "ex:07": "tsx examples/07-tools/index.ts",
+    "ex:08": "tsx examples/08-embedding-rag/index.ts",
+    "ex:09": "tsx examples/09-agent/index.ts",
+    "ex:10": "tsx examples/10-langgraph-helloworld/index.ts",
+    "ex:11": "tsx examples/11-langgraph-tool-agent/index.ts",
+    "ex:12": "tsx examples/12-langgraph-multi-agent/index.ts",
+    "ex:13": "tsx examples/13-openai-agents-sdk/index.ts",
+    "ex:14": "tsx examples/14-mcp/client-agent.ts",
+    "mcp:server": "tsx examples/14-mcp/server.ts",
+    "shop:dev": "npm --prefix apps/shop-query-agent run dev",
+    "shop:install": "npm --prefix apps/shop-query-agent install"
+  },
+  "dependencies": {
+    "@langchain/classic": "^1.0.0",
+    "@langchain/core": "^1.0.0",
+    "@langchain/langgraph": "^1.0.0",
+    "@langchain/openai": "^1.0.0",
+    "@langchain/textsplitters": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openai/agents": "^0.1.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

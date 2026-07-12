@@ -1,0 +1,76 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --ink: #1c2430;
+  --muted: #5d6b7c;
+  --card: #fffdf8;
+  --line: #d9d0c1;
+  --accent: #0f766e;
+  --accent-2: #c2410c;
+  --ok: #15803d;
+  --info: #0369a1;
+  --err: #b91c1c;
+  --shadow: 0 10px 30px rgba(28, 36, 48, 0.08);
+  --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: var(--sans);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(194, 65, 12, 0.1), transparent 24%),
+    var(--bg);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .responsive-grid {
+    grid-template-columns: 1fr;
+  }
+  h1 {
+    font-size: 30px !important;
+  }
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.result-table th,
+.result-table td {
+  border-bottom: 1px solid #e7dfd1;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.result-table th {
+  background: #f3eee4;
+  font-weight: 700;
+}
