@@ -399,7 +399,8 @@ main().catch((err) => {
 运行：
 
 ```bash
-python test_mysql.py
+# TypeScript 轨道：使用 npx tsx 运行对应 examples/ 或 apps/ 代码
+npx tsx examples/01-helloworld/index.ts
 ```
 
 ![本机 Python 脚本成功连接 Docker 中的 MySQL](images/8/8-2-7-1.png)

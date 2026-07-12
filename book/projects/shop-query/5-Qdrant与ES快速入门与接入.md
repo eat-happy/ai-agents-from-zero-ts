@@ -1006,7 +1006,7 @@ points=[ScoredPoint(id=33, version=4, score=0.9287777, payload={}, vector=None, 
 
 这一部分最值得注意的是下面几个位置：
 
-- `self.qdrant_config`：保存 `Qdrant` 配置对象，后面要从这里读取 `host`、`port` 等参数
+- `this.qdrant_config`：保存 `Qdrant` 配置对象，后面要从这里读取 `host`、`port` 等参数
 - `_get_url()`：根据配置拼出完整服务地址，例如 `http://localhost:6333`
 - `init()`：真正初始化 `AsyncQdrantClient`
 - `close()`：在程序退出时统一关闭客户端连接
@@ -2326,7 +2326,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 这里可以重点看下面几个位置：
 
-- `self.es_config`：保存配置对象，里面有 `host`、`port`、`index_name` 等参数
+- `this.es_config`：保存配置对象，里面有 `host`、`port`、`index_name` 等参数
 - `_get_url()`：把配置中的地址拼成完整 URL，例如 `http://localhost:9200`
 - `init()`：创建 `AsyncElasticsearch` 客户端
 - `close()`：在程序退出或生命周期结束时关闭连接
@@ -2386,7 +2386,7 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 - 分片、副本、故障转移这些能力，是 `ES` 作为分布式搜索引擎本身具备的背景能力
 - 当前这章的重点仍然是“把客户端接进项目并完成基础使用”，不是深入讲集群运维
 
-因此，这里用 `hosts=[self._get_url()]`，并不是说 `ES` 只能这么连，而是因为当前教程环境做了简化。
+因此，这里用 `hosts=[this.getUrl()]`，并不是说 `ES` 只能这么连，而是因为当前教程环境做了简化。
 
 这里还要再往前走一步，理解它在真实项目里的用途。上面的 `my-books` 示例主要是帮助我们快速看懂客户端写法；真正放到「电商问数」项目里，`ES` 更重要的作用是为字段取值建立全文索引。
 

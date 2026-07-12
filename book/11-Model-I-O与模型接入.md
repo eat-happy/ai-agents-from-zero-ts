@@ -509,8 +509,8 @@ AIMessage(
 
 这也是为什么你会在很多代码里看到：
 
-- `base_url=...`
-- `api_key=...`
+- `configuration.baseURL=...`
+- `apiKey=...`
 - `model="xxx"`
 
 这些参数组合在一起，本质上就是在用某个“兼容 OpenAI 协议”的入口调模型。

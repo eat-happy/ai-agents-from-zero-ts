@@ -661,8 +661,8 @@ export function buildSchemaContext(hits: RecallHit[]): string {
 
 这里有两个核心属性：
 
-- `self.config`：保存配置对象，里面有 `host`、`port`、`model`
-- `self.client`：保存真正可调用的 Embedding 客户端实例
+- `this.config`：保存配置对象，里面有 `host`、`port`、`model`
+- `this.client`：保存真正可调用的 Embedding 客户端实例
 
 和前面几类客户端管理器一样，这里也没有在构造函数里立刻完成初始化，而是先把对象创建出来，后面在 `init()` 里再真正生成客户端。
 
